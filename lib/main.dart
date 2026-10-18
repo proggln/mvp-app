@@ -77,6 +77,65 @@ class MvpApp extends StatelessWidget {
 
 // ---------------------------------------------------------------- data
 
+class PollOption {
+  PollOption({required this.id, required this.text, required this.votes});
+  final int id;
+  final String text;
+  int votes;
+}
+
+class Poll {
+  Poll({
+    required this.id,
+    required this.question,
+    required this.closed,
+    required this.options,
+    required this.my,
+  });
+
+  final int id;
+  final String question;
+  bool closed;
+  final List<PollOption> options;
+  int my;
+
+  int get total => options.fold<int>(0, (a, o) => a + o.votes);
+
+  factory Poll.fromJson(Map<String, dynamic> j) => Poll(
+        id: (j['id'] as num).toInt(),
+        question: (j['question'] ?? '').toString(),
+        closed: j['closed'] == true,
+        my: (j['my'] as num?)?.toInt() ?? 0,
+        options: ((j['options'] as List<dynamic>?) ?? <dynamic>[])
+            .map((e) => PollOption(
+                  id: ((e as Map<String, dynamic>)['id'] as num).toInt(),
+                  text: (e['text'] ?? '').toString(),
+                  votes: (e['votes'] as num?)?.toInt() ?? 0,
+                ))
+            .toList(),
+      );
+}
+
+class CardStyle {
+  CardStyle({required this.id, required this.name, required this.colors});
+  final String id;
+  final String name;
+  final List<Color> colors;
+
+  factory CardStyle.fromJson(Map<String, dynamic> j) => CardStyle(
+        id: (j['id'] ?? 'default').toString(),
+        name: (j['name'] ?? '').toString(),
+        colors: ((j['colors'] as List<dynamic>?) ?? <dynamic>[])
+            .map((c) => Color(
+                int.tryParse('FF${c.toString().replaceAll('#', '')}',
+                        radix: 16) ??
+                    0xFF0070B8))
+            .toList(),
+      );
+}
+
+const String storeUrl = 'https://mvp.mvp-shop.workers.dev/store/';
+
 class NewsItem {
   NewsItem({
     required this.id,
@@ -88,8 +147,10 @@ class NewsItem {
     this.dislikes = 0,
     this.views = 0,
     this.my = 0,
+    this.poll,
   });
 
+  Poll? poll;
   final int id;
   final String title;
   final String body;
@@ -110,6 +171,9 @@ class NewsItem {
       dislikes: (j['dislikes'] as num?)?.toInt() ?? 0,
       views: (j['views'] as num?)?.toInt() ?? 0,
       my: (j['my'] as num?)?.toInt() ?? 0,
+      poll: j['poll'] is Map<String, dynamic>
+          ? Poll.fromJson(j['poll'] as Map<String, dynamic>)
+          : null,
       createdAt: DateTime.tryParse((j['created_at'] ?? '').toString()) ??
           DateTime.fromMillisecondsSinceEpoch(0),
     );
@@ -359,6 +423,8 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
   bool linked = false;
   String storageNote = '';
   String since = '';
+  String themeId = 'default';
+  List<CardStyle> themes = <CardStyle>[];
 
   @override
   void initState() {
@@ -567,6 +633,10 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
           kills = (me['kills'] as num?)?.toInt() ?? 0;
           playtime = (me['playtime'] as num?)?.toInt() ?? 0;
           linked = me['linked'] == true;
+          themeId = (me['theme'] ?? 'default').toString();
+          themes = ((me['themes'] as List<dynamic>?) ?? <dynamic>[])
+              .map((e) => CardStyle.fromJson(e as Map<String, dynamic>))
+              .toList();
         });
         await savePref('cardno', cardNo);
       }
@@ -712,7 +782,143 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
     markViewed(n);
     Navigator.of(context).push(
       MaterialPageRoute<void>(
-          builder: (_) => NewsPage(item: n, onVote: voteNews)),
+          builder: (_) =>
+              NewsPage(item: n, onVote: voteNews, onPollVote: votePoll)),
+    );
+  }
+
+  List<Color> get cardColors {
+    for (final t in themes) {
+      if (t.id == themeId && t.colors.length >= 3) return t.colors;
+    }
+    return const [accentLight, accent, accentDark];
+  }
+
+  Future<void> votePoll(NewsItem n, int optionId) async {
+    final p = n.poll;
+    if (p == null || p.closed) return;
+    if (token.isEmpty || !linked) {
+      note('Link your game account to vote in polls.');
+      return;
+    }
+    final next = p.my == optionId ? 0 : optionId;
+    final oldMy = p.my;
+    final oldVotes = {for (final o in p.options) o.id: o.votes};
+    setState(() {
+      for (final o in p.options) {
+        if (o.id == oldMy) o.votes--;
+        if (o.id == next) o.votes++;
+      }
+      p.my = next;
+    });
+    try {
+      final r = await apiCall('POST', '/api/app/poll-vote',
+          token: token, data: {'poll_id': p.id, 'option_id': next});
+      if (r['_status'] != 200) throw Exception('poll');
+      final fresh = Poll.fromJson(r);
+      if (!mounted) return;
+      setState(() {
+        p.my = fresh.my;
+        p.closed = fresh.closed;
+        for (final o in p.options) {
+          for (final f in fresh.options) {
+            if (f.id == o.id) o.votes = f.votes;
+          }
+        }
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        p.my = oldMy;
+        for (final o in p.options) {
+          o.votes = oldVotes[o.id] ?? o.votes;
+        }
+      });
+      note('Could not save your vote. Try again.');
+    }
+  }
+
+  Future<void> setTheme(CardStyle t) async {
+    final old = themeId;
+    setState(() => themeId = t.id);
+    try {
+      final r = await apiCall('POST', '/api/app/theme',
+          token: token, data: {'theme_id': t.id});
+      if (r['_status'] != 200) throw Exception('theme');
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => themeId = old);
+      note('Could not change the card style.');
+    }
+  }
+
+  void chooseStyle() {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(22, 20, 22, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('Card style',
+                  style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w800,
+                      color: inkColor)),
+              const SizedBox(height: 4),
+              const Text('Special styles are given out at events.',
+                  style: TextStyle(color: mutedColor)),
+              const SizedBox(height: 16),
+              Wrap(
+                spacing: 14,
+                runSpacing: 14,
+                children: [
+                  for (final t in themes)
+                    GestureDetector(
+                      onTap: () {
+                        Navigator.of(ctx).pop();
+                        setTheme(t);
+                      },
+                      child: Column(
+                        children: [
+                          Container(
+                            width: 74,
+                            height: 52,
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(14),
+                              gradient: LinearGradient(
+                                colors: t.colors.length >= 3
+                                    ? t.colors
+                                    : const [accentLight, accent, accentDark],
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                              ),
+                              border: Border.all(
+                                color: t.id == themeId
+                                    ? inkColor
+                                    : Colors.transparent,
+                                width: 3,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(t.name,
+                              style: const TextStyle(
+                                  fontSize: 12, color: inkColor)),
+                        ],
+                      ),
+                    ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 
@@ -889,6 +1095,7 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
             cardNo: cardNum,
             since: since,
             rank: rank,
+            colors: cardColors,
             onTap: linked ? null : startLink,
           ),
           const SizedBox(height: 18),
@@ -925,6 +1132,8 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
               ),
             ],
           ),
+          const SizedBox(height: 14),
+          _storeTile(),
           const SizedBox(height: 14),
           Container(
             padding: const EdgeInsets.all(16),
@@ -1214,6 +1423,43 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
 
   // -------------------------------------------------------- settings tab
 
+  Widget _storeTile() {
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(20),
+      elevation: 1,
+      shadowColor: const Color(0x220B1B2B),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(20),
+        onTap: () => openLink(storeUrl),
+        child: const Padding(
+          padding: EdgeInsets.all(16),
+          child: Row(
+            children: [
+              Icon(Icons.storefront_rounded, color: accent, size: 30),
+              SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('MVP Store',
+                        style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w800,
+                            color: inkColor)),
+                    Text('Ranks and perks on the website',
+                        style: TextStyle(color: mutedColor, fontSize: 13)),
+                  ],
+                ),
+              ),
+              Icon(Icons.open_in_new_rounded, color: mutedColor),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _settingsTab() {
     return ListView(
       padding: const EdgeInsets.fromLTRB(22, 14, 22, 24),
@@ -1244,6 +1490,21 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
                         color: Color(0xFF2E9E5B))
                     : const Icon(Icons.chevron_right_rounded),
                 onTap: linked ? null : startLink,
+              ),
+              const Divider(height: 1),
+              ListTile(
+                leading: const Icon(Icons.palette_rounded, color: accent),
+                title: const Text('Card style'),
+                subtitle: Text(themes.length > 1
+                    ? themes
+                        .firstWhere((t) => t.id == themeId,
+                            orElse: () => themes.first)
+                        .name
+                    : 'Classic Blue. More styles come from events.'),
+                trailing: const Icon(Icons.chevron_right_rounded),
+                onTap: themes.length > 1
+                    ? chooseStyle
+                    : () => note('You have no special styles yet. They are given out at events.'),
               ),
               const Divider(height: 1),
               SwitchListTile(
@@ -1291,8 +1552,10 @@ class MemberCard extends StatefulWidget {
     required this.since,
     required this.rank,
     required this.onTap,
+    this.colors = const [accentLight, accent, accentDark],
   });
 
+  final List<Color> colors;
   final String nick;
   final String cardNo;
   final String since;
@@ -1342,17 +1605,17 @@ class _MemberCardState extends State<MemberCard> {
           height: 216,
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(26),
-            gradient: const LinearGradient(
-              colors: [accentLight, accent, accentDark],
-              stops: [0, 0.55, 1],
+            gradient: LinearGradient(
+              colors: widget.colors,
+              stops: const [0, 0.55, 1],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
-            boxShadow: const [
+            boxShadow: [
               BoxShadow(
-                color: Color(0x610070B8),
+                color: widget.colors[1].withAlpha(97),
                 blurRadius: 40,
-                offset: Offset(0, 22),
+                offset: const Offset(0, 22),
               ),
             ],
           ),
@@ -1790,6 +2053,20 @@ class NewsCard extends StatelessWidget {
                   style: const TextStyle(color: mutedColor, height: 1.4),
                 ),
                 const SizedBox(height: 8),
+                if (item.poll != null) ...[
+                  Row(
+                    children: [
+                      const Icon(Icons.poll_rounded, color: accent, size: 18),
+                      const SizedBox(width: 6),
+                      Text(
+                        item.poll!.closed ? 'Poll closed' : 'Poll: tap to vote',
+                        style: const TextStyle(
+                            color: accent, fontWeight: FontWeight.w700),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                ],
                 VoteBar(item: item, onVote: onVote),
               ],
             ),
@@ -1859,10 +2136,15 @@ class VoteBar extends StatelessWidget {
 }
 
 class NewsPage extends StatefulWidget {
-  const NewsPage({super.key, required this.item, required this.onVote});
+  const NewsPage(
+      {super.key,
+      required this.item,
+      required this.onVote,
+      required this.onPollVote});
 
   final NewsItem item;
   final Future<void> Function(NewsItem, int) onVote;
+  final Future<void> Function(NewsItem, int) onPollVote;
 
   @override
   State<NewsPage> createState() => _NewsPageState();
@@ -1871,6 +2153,13 @@ class NewsPage extends StatefulWidget {
 class _NewsPageState extends State<NewsPage> {
   Future<void> vote(NewsItem n, int v) async {
     final f = widget.onVote(n, v);
+    if (mounted) setState(() {});
+    await f;
+    if (mounted) setState(() {});
+  }
+
+  Future<void> pollVote(int optionId) async {
+    final f = widget.onPollVote(widget.item, optionId);
     if (mounted) setState(() {});
     await f;
     if (mounted) setState(() {});
@@ -1907,6 +2196,7 @@ class _NewsPageState extends State<NewsPage> {
             style: const TextStyle(fontSize: 16, height: 1.5, color: inkColor),
           ),
           for (final id in videoIds(item.body)) VideoTile(id: id),
+          if (item.poll != null) PollView(poll: item.poll!, onVote: pollVote),
           const SizedBox(height: 20),
           VoteBar(item: item, onVote: vote),
         ],
@@ -2109,6 +2399,103 @@ class _EventCardState extends State<EventCard> {
                 style:
                     const TextStyle(color: Color(0xD9FFFFFF), fontSize: 12)),
           ],
+        ],
+      ),
+    );
+  }
+}
+
+class PollView extends StatelessWidget {
+  const PollView({super.key, required this.poll, required this.onVote});
+
+  final Poll poll;
+  final Future<void> Function(int) onVote;
+
+  @override
+  Widget build(BuildContext context) {
+    final show = poll.my != 0 || poll.closed;
+    final total = poll.total;
+    return Container(
+      margin: const EdgeInsets.only(top: 18),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFFEAF5FD),
+        borderRadius: BorderRadius.circular(18),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            poll.question,
+            style: const TextStyle(
+                fontSize: 18, fontWeight: FontWeight.w800, color: inkColor),
+          ),
+          const SizedBox(height: 12),
+          for (final o in poll.options)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: InkWell(
+                borderRadius: BorderRadius.circular(14),
+                onTap: poll.closed ? null : () => onVote(o.id),
+                child: Container(
+                  height: 50,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(
+                      color: poll.my == o.id ? accent : const Color(0xFFD3E3EE),
+                      width: poll.my == o.id ? 2 : 1,
+                    ),
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(13),
+                    child: Stack(
+                      children: [
+                        if (show)
+                          FractionallySizedBox(
+                            widthFactor: total == 0 ? 0 : o.votes / total,
+                            child: Container(
+                              color: poll.my == o.id
+                                  ? const Color(0x550094E6)
+                                  : const Color(0x2A0094E6),
+                            ),
+                          ),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 14),
+                          child: Row(
+                            children: [
+                              if (poll.my == o.id)
+                                const Padding(
+                                  padding: EdgeInsets.only(right: 6),
+                                  child: Icon(Icons.check_circle_rounded,
+                                      color: accent, size: 18),
+                                ),
+                              Expanded(
+                                child: Text(o.text,
+                                    style: const TextStyle(
+                                        fontWeight: FontWeight.w600,
+                                        color: inkColor)),
+                              ),
+                              if (show)
+                                Text(
+                                  '${total == 0 ? 0 : (o.votes * 100 / total).round()}%',
+                                  style: const TextStyle(
+                                      fontWeight: FontWeight.w800,
+                                      color: inkColor),
+                                ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          Text(
+            '$total ${total == 1 ? 'vote' : 'votes'}${poll.closed ? '  |  Poll closed' : ''}',
+            style: const TextStyle(color: mutedColor, fontSize: 12),
+          ),
         ],
       ),
     );
