@@ -81,18 +81,21 @@ class NewsItem {
     required this.title,
     required this.body,
     required this.createdAt,
+    this.image,
   });
 
   final int id;
   final String title;
   final String body;
   final DateTime createdAt;
+  final String? image;
 
   factory NewsItem.fromJson(Map<String, dynamic> j) {
     return NewsItem(
       id: (j['id'] as num).toInt(),
       title: (j['title'] ?? '').toString(),
       body: (j['body'] ?? '').toString(),
+      image: j['image'] is String ? j['image'] as String : null,
       createdAt: DateTime.tryParse((j['created_at'] ?? '').toString()) ??
           DateTime.fromMillisecondsSinceEpoch(0),
     );
@@ -1364,6 +1367,38 @@ class _LinkSheetState extends State<LinkSheet> {
   }
 }
 
+class NewsPicture extends StatelessWidget {
+  const NewsPicture({super.key, required this.url, required this.height});
+
+  final String url;
+  final double? height;
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(14),
+      child: Image.network(
+        url,
+        width: double.infinity,
+        height: height,
+        fit: height == null ? BoxFit.fitWidth : BoxFit.cover,
+        loadingBuilder: (context, child, progress) {
+          if (progress == null) return child;
+          return Container(
+            width: double.infinity,
+            height: height ?? 180,
+            color: const Color(0xFFE3F2FC),
+            child: const Center(
+              child: CircularProgressIndicator(color: accent, strokeWidth: 2),
+            ),
+          );
+        },
+        errorBuilder: (context, error, stack) => const SizedBox.shrink(),
+      ),
+    );
+  }
+}
+
 class NewsCard extends StatelessWidget {
   const NewsCard({super.key, required this.item, required this.onTap});
 
@@ -1387,6 +1422,10 @@ class NewsCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                if (item.image != null) ...[
+                  NewsPicture(url: item.image!, height: 170),
+                  const SizedBox(height: 12),
+                ],
                 Text(
                   item.title,
                   style: const TextStyle(
@@ -1428,6 +1467,10 @@ class NewsPage extends StatelessWidget {
       body: ListView(
         padding: const EdgeInsets.all(22),
         children: [
+          if (item.image != null) ...[
+            NewsPicture(url: item.image!, height: null),
+            const SizedBox(height: 16),
+          ],
           Text(
             item.title,
             style: const TextStyle(
