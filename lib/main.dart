@@ -474,14 +474,18 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
 
   void note(String text) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
+    final m = ScaffoldMessenger.of(context);
+    m.clearSnackBars();
+    m.showSnackBar(
       SnackBar(
         content: Text(text),
         behavior: SnackBarBehavior.floating,
-        duration: const Duration(seconds: 6),
+        duration: const Duration(seconds: 3),
       ),
     );
   }
+
+  bool _checkingUpdate = false;
 
   // Backup storage: a small file in the app's private folder. It is used
   // together with SharedPreferences, so the login survives even if one of
@@ -508,6 +512,9 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
 
   Future<void> checkUpdate({bool manual = false}) async {
     if (kBuild == 0 && !manual) return;
+    if (_checkingUpdate) return;
+    _checkingUpdate = true;
+    if (manual) note('Checking for updates...');
     try {
       final latest = await latestBuild();
       if (!mounted) return;
@@ -515,6 +522,7 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
         if (manual) note('You have the latest version.');
         return;
       }
+      if (manual && mounted) ScaffoldMessenger.of(context).clearSnackBars();
       if (!manual) {
         try {
           final prefs = await SharedPreferences.getInstance();
@@ -550,6 +558,8 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
       );
     } catch (_) {
       if (manual) note('Could not check for updates.');
+    } finally {
+      _checkingUpdate = false;
     }
   }
 
@@ -1535,9 +1545,7 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
         const SizedBox(height: 20),
         Center(
           child: Text(
-            storageNote.isEmpty
-                ? 'MVP app'
-                : 'MVP app | storage problem: $storageNote',
+            'MVP app',
             style: const TextStyle(color: mutedColor, fontSize: 12),
           ),
         ),
