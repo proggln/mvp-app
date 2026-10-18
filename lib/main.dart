@@ -21,6 +21,8 @@ const Color cardColor = Color(0xFF0D1B2E);
 const Color lineColor = Color(0xFF1C3250);
 const Color mutedColor = Color(0xFF8FA7BD);
 
+String firebaseError = '';
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   bool firebaseOk = false;
@@ -28,8 +30,9 @@ Future<void> main() async {
     try {
       await Firebase.initializeApp(options: DefaultFirebaseOptions.android);
       firebaseOk = true;
-    } catch (_) {
+    } catch (e) {
       firebaseOk = false;
+      firebaseError = e.toString();
     }
   }
   runApp(MvpApp(firebaseOk: firebaseOk));
@@ -135,7 +138,21 @@ class _HomePageState extends State<HomePage> {
     load();
     if (widget.firebaseOk) {
       setupPush();
+    } else {
+      WidgetsBinding.instance.addPostFrameCallback((_) => note(
+          'Push setup failed: ${firebaseError.isEmpty ? 'Firebase off' : firebaseError}'));
     }
+  }
+
+  void note(String text) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(text),
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 8),
+      ),
+    );
   }
 
   @override
@@ -172,8 +189,9 @@ class _HomePageState extends State<HomePage> {
       if (mounted) setState(() {});
       final fm = FirebaseMessaging.instance;
       if (pushOn) {
-        await fm.requestPermission();
+        final st = await fm.requestPermission();
         await fm.subscribeToTopic(pushTopic);
+        note('Push ready (${st.authorizationStatus.name})');
       }
       _sub = FirebaseMessaging.onMessage.listen((RemoteMessage m) {
         if (!mounted) return;
@@ -183,8 +201,8 @@ class _HomePageState extends State<HomePage> {
         );
         load();
       });
-    } catch (_) {
-      // push is optional: the app still works without it
+    } catch (e) {
+      note('Push error: $e');
     }
   }
 
