@@ -26,6 +26,10 @@ jobs:
           flutter create --org org.playmvp --project-name app --platforms=android build_app
           rm -rf build_app/test
           cp -r lib/. build_app/lib/
+          mkdir -p build_app/assets
+          cp assets/logo.png build_app/assets/logo.png
+          python3 scripts/patch_pubspec.py build_app/pubspec.yaml
+          printf 'flutter_launcher_icons:\n  android: true\n  ios: false\n  image_path: "assets/logo.png"\n' > build_app/flutter_launcher_icons.yaml
           python3 scripts/patch_manifest.py build_app/android/app/src/main/AndroidManifest.xml
           if [ -f firebase/google-services.json ]; then
             cp firebase/google-services.json build_app/android/app/google-services.json
@@ -33,6 +37,9 @@ jobs:
           fi
           cd build_app
           flutter pub add http url_launcher firebase_core firebase_messaging shared_preferences
+          flutter pub add dev:flutter_launcher_icons
+          flutter pub get
+          dart run flutter_launcher_icons
 
       - name: Build the APK
         working-directory: build_app
