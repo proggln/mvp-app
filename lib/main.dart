@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 import 'dart:math';
 
 import 'package:firebase_core/firebase_core.dart';
@@ -338,6 +339,7 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
   int kills = 0;
   int playtime = 0;
   bool linked = false;
+  String storageNote = '';
   String since = '';
 
   @override
@@ -391,11 +393,48 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
     );
   }
 
+  // Backup storage: a small file in the app's private folder. It is used
+  // together with SharedPreferences, so the login survives even if one of
+  // them fails on a phone.
+  File? backupFile() {
+    try {
+      if (!Platform.isAndroid) return null;
+      return File('/data/user/0/org.playmvp.app/files/mvp_session.json');
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<Map<String, String>> readBackup() async {
+    try {
+      final f = backupFile();
+      if (f == null || !await f.exists()) return <String, String>{};
+      final j = jsonDecode(await f.readAsString()) as Map<String, dynamic>;
+      return j.map((k, v) => MapEntry(k, v.toString()));
+    } catch (_) {
+      return <String, String>{};
+    }
+  }
+
   Future<void> savePref(String key, String value) async {
+    storageNote = '';
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(key, value);
-    } catch (_) {}
+    } catch (e) {
+      storageNote = 'prefs';
+    }
+    try {
+      final f = backupFile();
+      if (f != null) {
+        final m = await readBackup();
+        m[key] = value;
+        await f.parent.create(recursive: true);
+        await f.writeAsString(jsonEncode(m));
+      }
+    } catch (e) {
+      storageNote = storageNote.isEmpty ? 'file' : 'both';
+    }
   }
 
   Future<void> loadProfile() async {
@@ -405,9 +444,15 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
     } catch (_) {
       prefs = null;
     }
-    token = prefs?.getString('token') ?? '';
-    final cachedCard = prefs?.getString('cardno') ?? '';
-    var s = prefs?.getString('since') ?? '';
+    final backup = await readBackup();
+    String pick(String key) {
+      final a = prefs?.getString(key) ?? '';
+      return a.isNotEmpty ? a : (backup[key] ?? '');
+    }
+
+    token = pick('token');
+    final cachedCard = pick('cardno');
+    var s = pick('since');
     if (s.isEmpty) {
       final n = DateTime.now();
       s = '${two(n.month)} / ${two(n.year % 100)}';
@@ -1139,10 +1184,12 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
           ),
         ),
         const SizedBox(height: 20),
-        const Center(
+        Center(
           child: Text(
-            'MVP app',
-            style: TextStyle(color: mutedColor, fontSize: 12),
+            storageNote.isEmpty
+                ? 'MVP app'
+                : 'MVP app | storage problem: $storageNote',
+            style: const TextStyle(color: mutedColor, fontSize: 12),
           ),
         ),
       ],
