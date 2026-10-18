@@ -44,9 +44,22 @@ jobs:
           flutter pub get
           dart run flutter_launcher_icons
 
+      - name: Set up app signing
+        env:
+          KS: ${{ secrets.KEYSTORE_BASE64 }}
+          KP: ${{ secrets.KEYSTORE_PASSWORD }}
+        run: |
+          if [ -n "$KS" ] && [ -n "$KP" ]; then
+            echo "$KS" | base64 -d > build_app/android/app/release.jks
+            printf 'storePassword=%s\nkeyPassword=%s\nkeyAlias=mvp\nstoreFile=release.jks\n' "$KP" "$KP" > build_app/android/key.properties
+            python3 scripts/patch_signing.py build_app/android
+          else
+            echo "No signing key set: building with a temporary debug key (updates will not install over older builds)."
+          fi
+
       - name: Build the APK
         working-directory: build_app
-        run: flutter build apk --release --no-shrink
+        run: flutter build apk --release --no-shrink --dart-define=BUILD=${{ github.run_number }}
 
       - uses: actions/upload-artifact@v4
         with:
@@ -59,4 +72,4 @@ jobs:
         run: |
           cp build_app/build/app/outputs/flutter-apk/app-release.apk mvp-app.apk
           gh release delete latest --cleanup-tag --yes || true
-          gh release create latest mvp-app.apk --title "MVP app (latest)" --notes "Latest Android build of the MVP app."
+          gh release create latest mvp-app.apk --title "MVP app build ${{ github.run_number }}" --notes "Latest Android build of the MVP app."

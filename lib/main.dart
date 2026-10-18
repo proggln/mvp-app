@@ -248,6 +248,23 @@ class VideoTile extends StatelessWidget {
   }
 }
 
+// Build number comes from the GitHub build (--dart-define=BUILD=...).
+const int kBuild = int.fromEnvironment('BUILD', defaultValue: 0);
+const String apkUrl =
+    'https://github.com/proggln/mvp-app/releases/latest/download/mvp-app.apk';
+
+/// Newest published build number (0 when unknown).
+Future<int> latestBuild() async {
+  final res = await http.get(
+    Uri.parse('https://api.github.com/repos/proggln/mvp-app/releases/latest'),
+    headers: {'Accept': 'application/vnd.github+json'},
+  ).timeout(const Duration(seconds: 15));
+  if (res.statusCode != 200) return 0;
+  final j = jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>;
+  final m = RegExp(r'build (\d+)').firstMatch((j['name'] ?? '').toString());
+  return m == null ? 0 : int.parse(m.group(1)!);
+}
+
 Future<List<NewsItem>> fetchNews([String token = '']) async {
   final res = await http
       .get(Uri.parse('$apiBase/api/news'),
@@ -348,6 +365,7 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
     WidgetsBinding.instance.addObserver(this);
     loadProfile();
     load();
+    WidgetsBinding.instance.addPostFrameCallback((_) => checkUpdate());
     if (widget.firebaseOk) {
       setupPush();
     } else {
@@ -413,6 +431,49 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
       return j.map((k, v) => MapEntry(k, v.toString()));
     } catch (_) {
       return <String, String>{};
+    }
+  }
+
+  Future<void> checkUpdate({bool manual = false}) async {
+    if (kBuild == 0 && !manual) return;
+    try {
+      final latest = await latestBuild();
+      if (!mounted) return;
+      if (latest <= kBuild) {
+        if (manual) note('You have the latest version.');
+        return;
+      }
+      if (!manual) {
+        try {
+          final prefs = await SharedPreferences.getInstance();
+          if (prefs.getInt('dismissed_build') == latest) return;
+          await prefs.setInt('dismissed_build', latest);
+        } catch (_) {}
+      }
+      if (!mounted) return;
+      await showDialog<void>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Update available'),
+          content: const Text(
+              'A new version of the MVP app is ready. Download it and open the file to update.'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text('Later'),
+            ),
+            FilledButton(
+              onPressed: () {
+                Navigator.of(ctx).pop();
+                openLink(apkUrl);
+              },
+              child: const Text('Download'),
+            ),
+          ],
+        ),
+      );
+    } catch (_) {
+      if (manual) note('Could not check for updates.');
     }
   }
 
@@ -1179,6 +1240,14 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
                     : 'Not available: ${firebaseError.isEmpty ? 'Firebase off' : firebaseError}'),
                 value: pushOn && widget.firebaseOk,
                 onChanged: widget.firebaseOk ? setPush : null,
+              ),
+              const Divider(height: 1),
+              ListTile(
+                leading:
+                    const Icon(Icons.system_update_rounded, color: accent),
+                title: const Text('Check for updates'),
+                subtitle: Text(kBuild == 0 ? 'Version: dev' : 'Build $kBuild'),
+                onTap: () => checkUpdate(manual: true),
               ),
             ],
           ),
