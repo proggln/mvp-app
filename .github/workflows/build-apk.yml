@@ -52,6 +52,10 @@ jobs:
           if [ -n "$KS" ] && [ -n "$KP" ]; then
             echo "$KS" | base64 -d > build_app/android/app/release.jks
             printf 'storePassword=%s\nkeyPassword=%s\nkeyAlias=mvp\nstoreFile=release.jks\n' "$KP" "$KP" > build_app/android/key.properties
+            if ! keytool -list -keystore build_app/android/app/release.jks -storepass "$KP" -alias mvp > /dev/null 2>&1; then
+              echo "::error::KEYSTORE_PASSWORD does not match the key (or KEYSTORE_BASE64 is damaged). Set both secrets again."
+              exit 1
+            fi
             python3 scripts/patch_signing.py build_app/android
           else
             echo "No signing key set: building with a temporary debug key (updates will not install over older builds)."
@@ -59,7 +63,15 @@ jobs:
 
       - name: Build the APK
         working-directory: build_app
-        run: flutter build apk --release --no-shrink --dart-define=BUILD=${{ github.run_number }}
+        shell: bash
+        run: |
+          set +e
+          flutter build apk --release --no-shrink --dart-define=BUILD=${{ github.run_number }} 2>&1 | tee build.log
+          code=${PIPESTATUS[0]}
+          if [ "$code" -ne 0 ]; then
+            grep -E "What went wrong|FAILURE|rror:|Error:|e: " -A2 build.log | head -12 | while IFS= read -r l; do echo "::error::$l"; done
+          fi
+          exit $code
 
       - uses: actions/upload-artifact@v4
         with:
