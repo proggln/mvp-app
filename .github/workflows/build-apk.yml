@@ -27,7 +27,7 @@ jobs:
           rm -rf build_app/test
           cp -r lib/. build_app/lib/
           mkdir -p build_app/assets
-          cp assets/logo.png build_app/assets/logo.png
+          cp assets/*.png build_app/assets/
           python3 scripts/patch_pubspec.py build_app/pubspec.yaml
           printf 'flutter_launcher_icons:\n  android: true\n  ios: false\n  image_path: "assets/logo.png"\n' > build_app/flutter_launcher_icons.yaml
           python3 scripts/patch_manifest.py build_app/android/app/src/main/AndroidManifest.xml
@@ -36,7 +36,7 @@ jobs:
             python3 scripts/patch_gradle.py build_app/android
           fi
           cd build_app
-          flutter pub add http url_launcher firebase_core firebase_messaging shared_preferences
+          flutter pub add http url_launcher firebase_core firebase_messaging shared_preferences:2.3.5
           flutter pub add dev:flutter_launcher_icons
           flutter pub get
           dart run flutter_launcher_icons

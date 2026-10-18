@@ -123,6 +123,27 @@ Future<void> openLink(String url) async {
   await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
 }
 
+Future<Map<String, dynamic>> apiCall(String method, String path,
+    {String? token}) async {
+  final uri = Uri.parse('$apiBase$path');
+  final headers = <String, String>{
+    'Content-Type': 'application/json',
+    if (token != null && token.isNotEmpty) 'Authorization': 'Bearer $token',
+  };
+  final res = await (method == 'POST'
+          ? http.post(uri, headers: headers, body: '{}')
+          : http.get(uri, headers: headers))
+      .timeout(const Duration(seconds: 15));
+  Map<String, dynamic> body;
+  try {
+    body = jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>;
+  } catch (_) {
+    body = <String, dynamic>{};
+  }
+  body['_status'] = res.statusCode;
+  return body;
+}
+
 List<BoxShadow> softShadow() => const [
       BoxShadow(
         color: Color(0x0F0B1B2B),
@@ -153,8 +174,13 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
   String pushStatus = 'Checking...';
   StreamSubscription<RemoteMessage>? _sub;
 
+  String token = '';
+  String cardNo = '';
   String nick = '';
-  String cardNo = '00000000';
+  String rank = 'Member';
+  int coins = 0;
+  int kills = 0;
+  bool linked = false;
   String since = '';
 
   @override
@@ -175,6 +201,7 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
       loadQuiet();
+      refreshProfile();
     }
   }
 
@@ -207,6 +234,13 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
     );
   }
 
+  Future<void> savePref(String key, String value) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(key, value);
+    } catch (_) {}
+  }
+
   Future<void> loadProfile() async {
     SharedPreferences? prefs;
     try {
@@ -214,82 +248,102 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
     } catch (_) {
       prefs = null;
     }
-    var no = prefs?.getString('cardno');
-    if (no == null || no.length != 8) {
-      final r = Random.secure();
-      no = List.generate(8, (_) => r.nextInt(10)).join();
-      try {
-        await prefs?.setString('cardno', no);
-      } catch (_) {}
-    }
-    var s = prefs?.getString('since');
-    if (s == null) {
+    token = prefs?.getString('token') ?? '';
+    final cachedCard = prefs?.getString('cardno') ?? '';
+    var s = prefs?.getString('since') ?? '';
+    if (s.isEmpty) {
       final n = DateTime.now();
       s = '${two(n.month)} / ${two(n.year % 100)}';
-      try {
-        await prefs?.setString('since', s);
-      } catch (_) {}
+      await savePref('since', s);
     }
-    if (!mounted) return;
-    setState(() {
-      nick = prefs?.getString('nick') ?? '';
-      cardNo = no!;
-      since = s!;
-    });
+    if (mounted) {
+      setState(() {
+        since = s;
+        if (cardNo.isEmpty) cardNo = cachedCard;
+      });
+    }
+    await refreshProfile();
   }
 
-  Future<void> editNick() async {
-    final controller = TextEditingController(text: nick);
-    final result = await showDialog<String>(
-      context: context,
-      builder: (ctx) {
-        String? err;
-        return StatefulBuilder(
-          builder: (ctx, setD) => AlertDialog(
-            backgroundColor: Colors.white,
-            title: const Text('Your nickname'),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(
-                  controller: controller,
-                  autofocus: true,
-                  maxLength: 16,
-                  decoration: InputDecoration(
-                    hintText: 'Minecraft nickname',
-                    errorText: err,
-                  ),
-                ),
-              ],
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(ctx),
-                child: const Text('Cancel'),
-              ),
-              FilledButton(
-                onPressed: () {
-                  final v = controller.text.trim();
-                  if (!RegExp(r'^[A-Za-z0-9_]{3,16}$').hasMatch(v)) {
-                    setD(() => err = '3-16 letters, digits or _');
-                    return;
-                  }
-                  Navigator.pop(ctx, v);
-                },
-                child: const Text('Save'),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-    if (result == null) return;
+  /// Gets (or creates) this phone's card and reads the profile from the server.
+  Future<void> refreshProfile({bool retry = true}) async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('nick', result);
-    } catch (_) {}
+      if (token.isEmpty) {
+        final r = await apiCall('POST', '/api/app/register');
+        if (r['_status'] == 200 && r['token'] is String) {
+          token = r['token'] as String;
+          cardNo = (r['card_no'] ?? '').toString();
+          await savePref('token', token);
+          await savePref('cardno', cardNo);
+          if (mounted) setState(() {});
+        } else {
+          return;
+        }
+      }
+      final me = await apiCall('GET', '/api/app/me', token: token);
+      final st = me['_status'];
+      if (st == 401 && retry) {
+        // the card was deleted in the admin panel: this phone gets a new one
+        token = '';
+        await savePref('token', '');
+        await refreshProfile(retry: false);
+        return;
+      }
+      if (st == 200 && mounted) {
+        setState(() {
+          cardNo = (me['card_no'] ?? cardNo).toString();
+          nick = (me['nick'] ?? '').toString();
+          rank = (me['rank'] ?? 'Member').toString();
+          coins = (me['coins'] as num?)?.toInt() ?? 0;
+          kills = (me['kills'] as num?)?.toInt() ?? 0;
+          linked = me['linked'] == true;
+        });
+        await savePref('cardno', cardNo);
+      }
+    } catch (_) {
+      // offline: keep what we have
+    }
+  }
+
+  Future<void> openLink() async {
+    if (token.isEmpty) await refreshProfile();
+    if (token.isEmpty) {
+      note('No connection. Check your internet and try again.');
+      return;
+    }
+    Map<String, dynamic> r;
+    try {
+      r = await apiCall('POST', '/api/app/link-code', token: token);
+    } catch (_) {
+      note('No connection. Check your internet and try again.');
+      return;
+    }
+    if (r['_status'] == 409) {
+      await refreshProfile();
+      return;
+    }
+    if (r['_status'] != 200 || r['code'] is! String) {
+      note('Could not get a code. Try again later.');
+      return;
+    }
+    final code = r['code'] as String;
     if (!mounted) return;
-    setState(() => nick = result);
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.white,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
+      ),
+      builder: (ctx) => LinkSheet(
+        code: code,
+        check: () async {
+          await refreshProfile();
+          return linked;
+        },
+      ),
+    );
+    if (linked && nick.isNotEmpty) note('Linked as $nick!');
   }
 
   Future<void> load() async {
@@ -452,6 +506,7 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
 
   Widget _cardTab() {
     final name = nick.isEmpty ? 'Player' : nick;
+    final cardNum = cardNo.length == 8 ? cardNo : '';
     return RefreshIndicator(
       color: accent,
       onRefresh: load,
@@ -506,39 +561,40 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
           const SizedBox(height: 18),
           MemberCard(
             nick: nick,
-            cardNo: cardNo,
+            cardNo: cardNum,
             since: since,
-            onTapNick: editNick,
+            rank: rank,
+            onTap: linked ? null : openLink,
           ),
           const SizedBox(height: 18),
           Row(
-            children: const [
+            children: [
               Expanded(
                 child: StatTile(
                   icon: Icons.workspace_premium_rounded,
-                  tint: Color(0xFFE3F2FC),
+                  tint: const Color(0xFFE3F2FC),
                   color: accent,
-                  value: '—',
+                  value: rank,
                   label: 'Rank',
                 ),
               ),
-              SizedBox(width: 10),
+              const SizedBox(width: 10),
               Expanded(
                 child: StatTile(
-                  icon: Icons.monetization_on_rounded,
-                  tint: Color(0xFFFFF1D6),
-                  color: Color(0xFFB87400),
-                  value: '—',
+                  asset: 'assets/coin.png',
+                  tint: const Color(0xFFFFF1D6),
+                  color: const Color(0xFFB87400),
+                  value: '$coins',
                   label: 'Coins',
                 ),
               ),
-              SizedBox(width: 10),
+              const SizedBox(width: 10),
               Expanded(
                 child: StatTile(
-                  icon: Icons.sports_martial_arts_rounded,
-                  tint: Color(0xFFFDE4E6),
-                  color: Color(0xFFC0343F),
-                  value: '—',
+                  asset: 'assets/sword.png',
+                  tint: const Color(0xFFFDE4E6),
+                  color: const Color(0xFFC0343F),
+                  value: '$kills',
                   label: 'Kills',
                 ),
               ),
@@ -554,35 +610,41 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
             ),
             child: Row(
               children: [
-                const Expanded(
+                Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Link your account',
-                        style: TextStyle(
+                        linked ? 'Account linked' : 'Link your account',
+                        style: const TextStyle(
                           fontWeight: FontWeight.w600,
                           fontSize: 14,
                           color: inkColor,
                         ),
                       ),
-                      SizedBox(height: 2),
+                      const SizedBox(height: 2),
                       Text(
-                        'Stats from the server will appear here soon.',
-                        style: TextStyle(color: mutedColor, fontSize: 12),
+                        linked
+                            ? 'Playing as $nick'
+                            : 'Get a code, then type /link CODE in the game.',
+                        style: const TextStyle(color: mutedColor, fontSize: 12),
                       ),
                     ],
                   ),
                 ),
                 const SizedBox(width: 10),
-                FilledButton(
-                  onPressed: () => note('Account linking is coming soon.'),
-                  style: FilledButton.styleFrom(
-                    minimumSize: const Size(72, 44),
-                    shape: const StadiumBorder(),
+                if (linked)
+                  const Icon(Icons.check_circle_rounded,
+                      color: Color(0xFF2E9E5B), size: 30)
+                else
+                  FilledButton(
+                    onPressed: openLink,
+                    style: FilledButton.styleFrom(
+                      minimumSize: const Size(72, 44),
+                      shape: const StadiumBorder(),
+                    ),
+                    child: const Text('Link'),
                   ),
-                  child: const Text('Link'),
-                ),
               ],
             ),
           ),
@@ -849,10 +911,13 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
             children: [
               ListTile(
                 leading: const Icon(Icons.person_rounded, color: accent),
-                title: const Text('Nickname'),
-                subtitle: Text(nick.isEmpty ? 'Not set' : nick),
-                trailing: const Icon(Icons.chevron_right_rounded),
-                onTap: editNick,
+                title: const Text('Game account'),
+                subtitle: Text(linked ? nick : 'Not linked. Tap to link.'),
+                trailing: linked
+                    ? const Icon(Icons.check_circle_rounded,
+                        color: Color(0xFF2E9E5B))
+                    : const Icon(Icons.chevron_right_rounded),
+                onTap: linked ? null : openLink,
               ),
               const Divider(height: 1),
               SwitchListTile(
@@ -888,13 +953,15 @@ class MemberCard extends StatefulWidget {
     required this.nick,
     required this.cardNo,
     required this.since,
-    required this.onTapNick,
+    required this.rank,
+    required this.onTap,
   });
 
   final String nick;
   final String cardNo;
   final String since;
-  final VoidCallback onTapNick;
+  final String rank;
+  final VoidCallback? onTap;
 
   @override
   State<MemberCard> createState() => _MemberCardState();
@@ -903,12 +970,13 @@ class MemberCard extends StatefulWidget {
 class _MemberCardState extends State<MemberCard> {
   Offset tilt = Offset.zero;
 
-  String get number =>
-      '${widget.cardNo.substring(0, 4)} ${widget.cardNo.substring(4)}';
+  String get number => widget.cardNo.length == 8
+      ? '${widget.cardNo.substring(0, 4)} ${widget.cardNo.substring(4)}'
+      : '···· ····';
 
   @override
   Widget build(BuildContext context) {
-    final nick = widget.nick.isEmpty ? 'SET NICKNAME' : widget.nick.toUpperCase();
+    final nick = widget.nick.isEmpty ? 'NOT LINKED' : widget.nick.toUpperCase();
     return GestureDetector(
       onPanUpdate: (d) {
         setState(() {
@@ -1014,8 +1082,8 @@ class _MemberCardState extends State<MemberCard> {
                             color: const Color(0x38FFFFFF),
                             borderRadius: BorderRadius.circular(999),
                           ),
-                          child: const Text(
-                            'Member',
+                          child: Text(
+                            widget.rank,
                             style: TextStyle(
                               color: Colors.white,
                               fontSize: 11,
@@ -1042,7 +1110,7 @@ class _MemberCardState extends State<MemberCard> {
                       children: [
                         Expanded(
                           child: InkWell(
-                            onTap: widget.onTapNick,
+                            onTap: widget.onTap,
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
@@ -1106,14 +1174,16 @@ class _MemberCardState extends State<MemberCard> {
 class StatTile extends StatelessWidget {
   const StatTile({
     super.key,
-    required this.icon,
+    this.icon,
+    this.asset,
     required this.tint,
     required this.color,
     required this.value,
     required this.label,
   });
 
-  final IconData icon;
+  final IconData? icon;
+  final String? asset;
   final Color tint;
   final Color color;
   final String value;
@@ -1138,11 +1208,22 @@ class StatTile extends StatelessWidget {
               color: tint,
               borderRadius: BorderRadius.circular(10),
             ),
-            child: Icon(icon, size: 17, color: color),
+            child: asset != null
+                ? Padding(
+                    padding: const EdgeInsets.all(6),
+                    child: Image.asset(
+                      asset!,
+                      filterQuality: FilterQuality.none,
+                      fit: BoxFit.contain,
+                    ),
+                  )
+                : Icon(icon, size: 17, color: color),
           ),
           const SizedBox(height: 8),
           Text(
             value,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
             style: const TextStyle(
               fontWeight: FontWeight.w800,
               fontSize: 19,
@@ -1150,6 +1231,133 @@ class StatTile extends StatelessWidget {
             ),
           ),
           Text(label, style: const TextStyle(color: mutedColor, fontSize: 11)),
+        ],
+      ),
+    );
+  }
+}
+
+class LinkSheet extends StatefulWidget {
+  const LinkSheet({super.key, required this.code, required this.check});
+
+  final String code;
+  final Future<bool> Function() check;
+
+  @override
+  State<LinkSheet> createState() => _LinkSheetState();
+}
+
+class _LinkSheetState extends State<LinkSheet> {
+  Timer? _timer;
+  bool _busy = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _timer = Timer.periodic(const Duration(seconds: 3), (_) async {
+      if (_busy) return;
+      _busy = true;
+      final ok = await widget.check();
+      _busy = false;
+      if (ok && mounted) Navigator.of(context).pop();
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final command = '/link ${widget.code}';
+    return Padding(
+      padding: EdgeInsets.fromLTRB(
+        24,
+        22,
+        24,
+        24 + MediaQuery.of(context).viewInsets.bottom,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Link your account',
+            style: TextStyle(
+              fontSize: 22,
+              fontWeight: FontWeight.w800,
+              color: inkColor,
+            ),
+          ),
+          const SizedBox(height: 6),
+          const Text(
+            'Join the server and type this command in the game chat:',
+            style: TextStyle(color: mutedColor),
+          ),
+          const SizedBox(height: 16),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(vertical: 18),
+            decoration: BoxDecoration(
+              color: const Color(0xFFE3F2FC),
+              borderRadius: BorderRadius.circular(18),
+            ),
+            child: Center(
+              child: Text(
+                command,
+                style: const TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 3,
+                  color: accent,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              Expanded(
+                child: FilledButton.icon(
+                  onPressed: () async {
+                    await Clipboard.setData(ClipboardData(text: command));
+                    if (!context.mounted) return;
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Command copied'),
+                        behavior: SnackBarBehavior.floating,
+                      ),
+                    );
+                  },
+                  style: FilledButton.styleFrom(
+                    minimumSize: const Size(0, 46),
+                    shape: const StadiumBorder(),
+                  ),
+                  icon: const Icon(Icons.copy_rounded, size: 18),
+                  label: const Text('Copy command'),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: const [
+              SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(strokeWidth: 2, color: accent),
+              ),
+              SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'Waiting for the game... The code works for 10 minutes.',
+                  style: TextStyle(color: mutedColor, fontSize: 12),
+                ),
+              ),
+            ],
+          ),
         ],
       ),
     );
