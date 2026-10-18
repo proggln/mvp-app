@@ -134,7 +134,6 @@ class CardStyle {
       );
 }
 
-const String storeUrl = 'https://mvp.mvp-shop.workers.dev/store/';
 
 class NewsItem {
   NewsItem({
