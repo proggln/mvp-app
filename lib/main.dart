@@ -341,6 +341,7 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
   int tab = 0;
 
   List<NewsItem>? items;
+  List<EventItem> events = <EventItem>[];
   String? error;
   bool loading = true;
 
@@ -385,9 +386,14 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
   Future<void> loadQuiet() async {
     try {
       final list = await fetchNews(token);
+      List<EventItem> ev = events;
+      try {
+        ev = await fetchEvents();
+      } catch (_) {}
       if (!mounted) return;
       setState(() {
         items = list;
+        events = ev;
         error = null;
       });
     } catch (_) {}
@@ -617,9 +623,14 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
     });
     try {
       final list = await fetchNews(token);
+      List<EventItem> ev = events;
+      try {
+        ev = await fetchEvents();
+      } catch (_) {}
       if (!mounted) return;
       setState(() {
         items = list;
+        events = ev;
         loading = false;
       });
     } catch (e) {
@@ -826,6 +837,8 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.fromLTRB(22, 14, 22, 24),
         children: [
+          for (final e in events.where((x) => x.pinned))
+            EventCard(key: ValueKey('p${e.id}'), item: e),
           Row(
             children: [
               Expanded(
@@ -1025,6 +1038,8 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
             ),
           ),
           const SizedBox(height: 16),
+          for (final e in events)
+            EventCard(key: ValueKey('n${e.id}'), item: e),
           if (loading && items == null)
             const Padding(
               padding: EdgeInsets.only(top: 60),
@@ -1894,6 +1909,206 @@ class _NewsPageState extends State<NewsPage> {
           for (final id in videoIds(item.body)) VideoTile(id: id),
           const SizedBox(height: 20),
           VoteBar(item: item, onVote: vote),
+        ],
+      ),
+    );
+  }
+}
+
+
+class EventItem {
+  EventItem({
+    required this.id,
+    required this.title,
+    required this.subtitle,
+    required this.label,
+    required this.targetAt,
+    required this.startAt,
+    required this.pinned,
+  });
+
+  final int id;
+  final String title;
+  final String subtitle;
+  final String label;
+  final int targetAt;
+  final int startAt;
+  final bool pinned;
+
+  factory EventItem.fromJson(Map<String, dynamic> j) => EventItem(
+        id: (j['id'] as num).toInt(),
+        title: (j['title'] ?? '').toString(),
+        subtitle: (j['subtitle'] ?? '').toString(),
+        label: (j['label'] ?? 'Starts in').toString(),
+        targetAt: (j['target_at'] as num).toInt(),
+        startAt: (j['start_at'] as num).toInt(),
+        pinned: (j['pinned'] ?? 0) == 1,
+      );
+}
+
+Future<List<EventItem>> fetchEvents() async {
+  final res = await http
+      .get(Uri.parse('$apiBase/api/events'))
+      .timeout(const Duration(seconds: 15));
+  if (res.statusCode != 200) return <EventItem>[];
+  final data = jsonDecode(utf8.decode(res.bodyBytes));
+  if (data is! List) return <EventItem>[];
+  return data
+      .map((e) => EventItem.fromJson(e as Map<String, dynamic>))
+      .toList();
+}
+
+class EventCard extends StatefulWidget {
+  const EventCard({super.key, required this.item});
+
+  final EventItem item;
+
+  @override
+  State<EventCard> createState() => _EventCardState();
+}
+
+class _EventCardState extends State<EventCard> {
+  Timer? _t;
+
+  @override
+  void initState() {
+    super.initState();
+    _t = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (mounted) setState(() {});
+    });
+  }
+
+  @override
+  void dispose() {
+    _t?.cancel();
+    super.dispose();
+  }
+
+  String _p(int n) => n < 10 ? '0$n' : '$n';
+
+  @override
+  Widget build(BuildContext context) {
+    final e = widget.item;
+    final now = DateTime.now().millisecondsSinceEpoch;
+    final left = e.targetAt - now;
+    final starts = e.label != 'Ends in';
+    final done = left <= 0;
+    final secs = done ? 0 : left ~/ 1000;
+    final d = secs ~/ 86400;
+    final h = (secs % 86400) ~/ 3600;
+    final m = (secs % 3600) ~/ 60;
+    final s = secs % 60;
+    final total = max(1, e.targetAt - e.startAt);
+    final pc = done ? 100 : ((now - e.startAt) * 100 ~/ total).clamp(0, 100);
+    const big = TextStyle(
+        fontSize: 40, fontWeight: FontWeight.w900, color: Colors.white);
+    const unit = TextStyle(
+        fontSize: 16, fontWeight: FontWeight.w700, color: Color(0xCCFFFFFF));
+    final spans = <InlineSpan>[
+      if (d > 0) ...[
+        TextSpan(text: '$d', style: big),
+        const TextSpan(text: 'd  ', style: unit),
+      ],
+      TextSpan(text: _p(h), style: big),
+      const TextSpan(text: 'h  ', style: unit),
+      TextSpan(text: _p(m), style: big),
+      const TextSpan(text: 'm  ', style: unit),
+      TextSpan(text: _p(s), style: big),
+      const TextSpan(text: 's', style: unit),
+    ];
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.fromLTRB(20, 18, 20, 18),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(22),
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [accentLight, accentDark, Color(0xFF06223D)],
+          stops: [0, 0.7, 1],
+        ),
+        boxShadow: const [
+          BoxShadow(
+              color: Color(0x4D0070B8), blurRadius: 24, offset: Offset(0, 10)),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text(
+                (done ? (starts ? 'Started' : 'Finished') : e.label)
+                    .toUpperCase(),
+                style: const TextStyle(
+                  color: Color(0xD9FFFFFF),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 1.6,
+                ),
+              ),
+              if (e.pinned) ...[
+                const SizedBox(width: 8),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: const Color(0x38FFFFFF),
+                    borderRadius: BorderRadius.circular(99),
+                  ),
+                  child: const Text(
+                    'PINNED',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 1,
+                    ),
+                  ),
+                ),
+              ],
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            e.title,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 22,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          if (e.subtitle.isNotEmpty) ...[
+            const SizedBox(height: 4),
+            Text(e.subtitle,
+                style: const TextStyle(color: Color(0xFFD8EFFF), fontSize: 14)),
+          ],
+          const SizedBox(height: 14),
+          if (done)
+            Text(starts ? 'It has begun!' : 'Finished', style: big)
+          else
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerLeft,
+              child: Text.rich(TextSpan(children: spans)),
+            ),
+          const SizedBox(height: 14),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(9),
+            child: LinearProgressIndicator(
+              value: pc / 100,
+              minHeight: 10,
+              backgroundColor: const Color(0x38FFFFFF),
+              valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
+            ),
+          ),
+          if (!done) ...[
+            const SizedBox(height: 6),
+            Text('$pc% of the time has passed',
+                style:
+                    const TextStyle(color: Color(0xD9FFFFFF), fontSize: 12)),
+          ],
         ],
       ),
     );
