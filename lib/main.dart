@@ -4,6 +4,7 @@ import 'dart:math';
 
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
@@ -110,6 +111,138 @@ class NewsItem {
       my: (j['my'] as num?)?.toInt() ?? 0,
       createdAt: DateTime.tryParse((j['created_at'] ?? '').toString()) ??
           DateTime.fromMillisecondsSinceEpoch(0),
+    );
+  }
+}
+
+
+final RegExp _linkRe = RegExp(
+    r'\[([^\]]{1,80})\]\((https?://[^\s)]+)\)|(https?://[^\s<>()\[\]]+)');
+final RegExp _ytRe = RegExp(
+    r'(?:youtube\.com/(?:watch\?(?:[^\s&]*&)*v=|shorts/|embed/)|youtu\.be/)([A-Za-z0-9_-]{11})');
+
+String? youtubeId(String url) => _ytRe.firstMatch(url)?.group(1);
+
+/// Video ids found in a post, in order, without repeats.
+List<String> videoIds(String text) {
+  final out = <String>[];
+  for (final m in _linkRe.allMatches(text)) {
+    final url = m.group(2) ?? m.group(3) ?? '';
+    final id = youtubeId(url);
+    if (id != null && !out.contains(id)) out.add(id);
+  }
+  return out;
+}
+
+/// Text for list previews: markup removed, video links dropped.
+String plainBody(String text) {
+  return text
+      .replaceAllMapped(_linkRe, (m) {
+        if (m.group(1) != null) return m.group(1)!;
+        final url = m.group(3) ?? '';
+        return youtubeId(url) != null ? '' : url;
+      })
+      .replaceAll(RegExp(r'\n{3,}'), '\n\n')
+      .trim();
+}
+
+class RichBody extends StatefulWidget {
+  const RichBody({super.key, required this.text, required this.style});
+
+  final String text;
+  final TextStyle style;
+
+  @override
+  State<RichBody> createState() => _RichBodyState();
+}
+
+class _RichBodyState extends State<RichBody> {
+  final List<TapGestureRecognizer> _taps = [];
+
+  @override
+  void dispose() {
+    for (final t in _taps) {
+      t.dispose();
+    }
+    super.dispose();
+  }
+
+  TextSpan _link(String label, String url) {
+    final tap = TapGestureRecognizer()..onTap = () => openLink(url);
+    _taps.add(tap);
+    return TextSpan(
+      text: label,
+      recognizer: tap,
+      style: const TextStyle(
+          color: accent,
+          decoration: TextDecoration.underline,
+          fontWeight: FontWeight.w600),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    for (final t in _taps) {
+      t.dispose();
+    }
+    _taps.clear();
+    final spans = <InlineSpan>[];
+    var pos = 0;
+    final text = widget.text;
+    for (final m in _linkRe.allMatches(text)) {
+      if (m.start > pos) spans.add(TextSpan(text: text.substring(pos, m.start)));
+      if (m.group(1) != null) {
+        spans.add(_link(m.group(1)!, m.group(2)!));
+      } else {
+        final url = m.group(3)!;
+        if (youtubeId(url) == null) spans.add(_link(url, url));
+      }
+      pos = m.end;
+    }
+    if (pos < text.length) spans.add(TextSpan(text: text.substring(pos)));
+    return Text.rich(TextSpan(style: widget.style, children: spans));
+  }
+}
+
+class VideoTile extends StatelessWidget {
+  const VideoTile({super.key, required this.id});
+
+  final String id;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 14),
+      child: Semantics(
+        button: true,
+        label: 'Play video',
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: () => openLink('https://www.youtube.com/watch?v=$id'),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(16),
+            child: AspectRatio(
+              aspectRatio: 16 / 9,
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  Image.network(
+                    'https://img.youtube.com/vi/$id/hqdefault.jpg',
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) =>
+                        Container(color: const Color(0xFF0B1B2B)),
+                  ),
+                  Container(color: const Color(0x55000000)),
+                  const Center(
+                    child: Icon(Icons.play_circle_fill_rounded,
+                        size: 64, color: Colors.white),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
@@ -1518,7 +1651,7 @@ class NewsCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  item.body,
+                  plainBody(item.body),
                   maxLines: 3,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(color: mutedColor, height: 1.4),
@@ -1636,10 +1769,11 @@ class _NewsPageState extends State<NewsPage> {
             style: const TextStyle(color: accent),
           ),
           const SizedBox(height: 16),
-          SelectableText(
-            item.body,
+          RichBody(
+            text: item.body,
             style: const TextStyle(fontSize: 16, height: 1.5, color: inkColor),
           ),
+          for (final id in videoIds(item.body)) VideoTile(id: id),
           const SizedBox(height: 20),
           VoteBar(item: item, onVote: vote),
         ],
