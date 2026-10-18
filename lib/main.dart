@@ -82,6 +82,10 @@ class NewsItem {
     required this.body,
     required this.createdAt,
     this.image,
+    this.likes = 0,
+    this.dislikes = 0,
+    this.views = 0,
+    this.my = 0,
   });
 
   final int id;
@@ -89,6 +93,10 @@ class NewsItem {
   final String body;
   final DateTime createdAt;
   final String? image;
+  int likes;
+  int dislikes;
+  int views;
+  int my;
 
   factory NewsItem.fromJson(Map<String, dynamic> j) {
     return NewsItem(
@@ -96,15 +104,20 @@ class NewsItem {
       title: (j['title'] ?? '').toString(),
       body: (j['body'] ?? '').toString(),
       image: j['image'] is String ? j['image'] as String : null,
+      likes: (j['likes'] as num?)?.toInt() ?? 0,
+      dislikes: (j['dislikes'] as num?)?.toInt() ?? 0,
+      views: (j['views'] as num?)?.toInt() ?? 0,
+      my: (j['my'] as num?)?.toInt() ?? 0,
       createdAt: DateTime.tryParse((j['created_at'] ?? '').toString()) ??
           DateTime.fromMillisecondsSinceEpoch(0),
     );
   }
 }
 
-Future<List<NewsItem>> fetchNews() async {
+Future<List<NewsItem>> fetchNews([String token = '']) async {
   final res = await http
-      .get(Uri.parse('$apiBase/api/news'))
+      .get(Uri.parse('$apiBase/api/news'),
+          headers: token.isEmpty ? null : {'Authorization': 'Bearer $token'})
       .timeout(const Duration(seconds: 15));
   if (res.statusCode != 200) {
     throw Exception('Server error ${res.statusCode}');
@@ -134,14 +147,14 @@ Future<void> openLink(String url) async {
 }
 
 Future<Map<String, dynamic>> apiCall(String method, String path,
-    {String? token}) async {
+    {String? token, Map<String, dynamic>? data}) async {
   final uri = Uri.parse('$apiBase$path');
   final headers = <String, String>{
     'Content-Type': 'application/json',
     if (token != null && token.isNotEmpty) 'Authorization': 'Bearer $token',
   };
   final res = await (method == 'POST'
-          ? http.post(uri, headers: headers, body: '{}')
+          ? http.post(uri, headers: headers, body: jsonEncode(data ?? <String, dynamic>{}))
           : http.get(uri, headers: headers))
       .timeout(const Duration(seconds: 15));
   Map<String, dynamic> body;
@@ -218,7 +231,7 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
 
   Future<void> loadQuiet() async {
     try {
-      final list = await fetchNews();
+      final list = await fetchNews(token);
       if (!mounted) return;
       setState(() {
         items = list;
@@ -364,7 +377,7 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
       error = null;
     });
     try {
-      final list = await fetchNews();
+      final list = await fetchNews(token);
       if (!mounted) return;
       setState(() {
         items = list;
@@ -434,10 +447,58 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
     }
   }
 
+  Future<void> markViewed(NewsItem n) async {
+    if (token.isEmpty) return;
+    try {
+      final r = await apiCall('POST', '/api/app/view',
+          token: token, data: {'news_id': n.id});
+      if (r['_status'] == 200 && mounted) {
+        setState(() => n.views = (r['views'] as num).toInt());
+      }
+    } catch (_) {}
+  }
+
   void openNews(NewsItem n) {
+    markViewed(n);
     Navigator.of(context).push(
-      MaterialPageRoute<void>(builder: (_) => NewsPage(item: n)),
+      MaterialPageRoute<void>(
+          builder: (_) => NewsPage(item: n, onVote: voteNews)),
     );
+  }
+
+  Future<void> voteNews(NewsItem n, int v) async {
+    if (token.isEmpty || !linked) {
+      note('Link your game account to like or dislike news.');
+      return;
+    }
+    final next = n.my == v ? 0 : v;
+    final oldMy = n.my, oldL = n.likes, oldD = n.dislikes;
+    setState(() {
+      if (oldMy == 1) n.likes--;
+      if (oldMy == -1) n.dislikes--;
+      if (next == 1) n.likes++;
+      if (next == -1) n.dislikes++;
+      n.my = next;
+    });
+    try {
+      final r = await apiCall('POST', '/api/app/vote',
+          token: token, data: {'news_id': n.id, 'vote': next});
+      if (r['_status'] != 200) throw Exception('vote');
+      if (!mounted) return;
+      setState(() {
+        n.likes = (r['likes'] as num).toInt();
+        n.dislikes = (r['dislikes'] as num).toInt();
+        n.my = (r['my'] as num).toInt();
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        n.my = oldMy;
+        n.likes = oldL;
+        n.dislikes = oldD;
+      });
+      note('Could not save your vote. Try again.');
+    }
   }
 
   @override
@@ -681,7 +742,10 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
           ),
           const SizedBox(height: 4),
           if (items != null && items!.isNotEmpty)
-            NewsCard(item: items!.first, onTap: () => openNews(items!.first))
+            NewsCard(
+                item: items!.first,
+                onTap: () => openNews(items!.first),
+                onVote: voteNews)
           else
             Container(
               padding: const EdgeInsets.all(16),
@@ -714,17 +778,12 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
         padding: const EdgeInsets.fromLTRB(22, 14, 22, 24),
         children: [
           const Text(
-            'Server news',
+            'News',
             style: TextStyle(
               fontSize: 26,
               fontWeight: FontWeight.w800,
               color: inkColor,
             ),
-          ),
-          const SizedBox(height: 4),
-          const Text(
-            'Events and updates from the MVP server',
-            style: TextStyle(color: mutedColor),
           ),
           const SizedBox(height: 16),
           if (loading && items == null)
@@ -757,7 +816,8 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
               ),
             )
           else
-            ...list.map((n) => NewsCard(item: n, onTap: () => openNews(n))),
+            ...list.map((n) =>
+                NewsCard(item: n, onTap: () => openNews(n), onVote: voteNews)),
         ],
       ),
     );
@@ -1412,10 +1472,15 @@ class NewsPicture extends StatelessWidget {
 }
 
 class NewsCard extends StatelessWidget {
-  const NewsCard({super.key, required this.item, required this.onTap});
+  const NewsCard(
+      {super.key,
+      required this.item,
+      required this.onTap,
+      required this.onVote});
 
   final NewsItem item;
   final VoidCallback onTap;
+  final Future<void> Function(NewsItem, int) onVote;
 
   @override
   Widget build(BuildContext context) {
@@ -1458,6 +1523,8 @@ class NewsCard extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(color: mutedColor, height: 1.4),
                 ),
+                const SizedBox(height: 8),
+                VoteBar(item: item, onVote: onVote),
               ],
             ),
           ),
@@ -1467,13 +1534,85 @@ class NewsCard extends StatelessWidget {
   }
 }
 
-class NewsPage extends StatelessWidget {
-  const NewsPage({super.key, required this.item});
+class VoteBar extends StatelessWidget {
+  const VoteBar({super.key, required this.item, required this.onVote});
 
   final NewsItem item;
+  final Future<void> Function(NewsItem, int) onVote;
+
+  Widget btn(IconData icon, IconData iconOn, int count, bool on, int v,
+      String label) {
+    return Semantics(
+      label: label,
+      button: true,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(999),
+        onTap: () => onVote(item, v),
+        child: Container(
+          constraints: const BoxConstraints(minHeight: 44, minWidth: 64),
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          decoration: BoxDecoration(
+            color: on ? const Color(0xFFE3F2FC) : const Color(0xFFF1F5F9),
+            borderRadius: BorderRadius.circular(999),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(on ? iconOn : icon, size: 20, color: on ? accent : mutedColor),
+              const SizedBox(width: 6),
+              Text('$count',
+                  style: TextStyle(
+                      fontWeight: FontWeight.w700,
+                      color: on ? accent : mutedColor)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
+    return Row(
+      children: [
+        btn(Icons.thumb_up_outlined, Icons.thumb_up, item.likes, item.my == 1,
+            1, 'Like'),
+        const SizedBox(width: 10),
+        btn(Icons.thumb_down_outlined, Icons.thumb_down, item.dislikes,
+            item.my == -1, -1, 'Dislike'),
+        const Spacer(),
+        const Icon(Icons.visibility_outlined, size: 20, color: mutedColor),
+        const SizedBox(width: 6),
+        Text('${item.views}',
+            style: const TextStyle(
+                fontWeight: FontWeight.w700, color: mutedColor)),
+      ],
+    );
+  }
+}
+
+class NewsPage extends StatefulWidget {
+  const NewsPage({super.key, required this.item, required this.onVote});
+
+  final NewsItem item;
+  final Future<void> Function(NewsItem, int) onVote;
+
+  @override
+  State<NewsPage> createState() => _NewsPageState();
+}
+
+class _NewsPageState extends State<NewsPage> {
+  Future<void> vote(NewsItem n, int v) async {
+    final f = widget.onVote(n, v);
+    if (mounted) setState(() {});
+    await f;
+    if (mounted) setState(() {});
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final item = widget.item;
     return Scaffold(
       appBar: AppBar(title: const Text('News')),
       body: ListView(
@@ -1501,6 +1640,8 @@ class NewsPage extends StatelessWidget {
             item.body,
             style: const TextStyle(fontSize: 16, height: 1.5, color: inkColor),
           ),
+          const SizedBox(height: 20),
+          VoteBar(item: item, onVote: vote),
         ],
       ),
     );
