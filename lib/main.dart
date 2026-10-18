@@ -142,7 +142,7 @@ class Shell extends StatefulWidget {
   State<Shell> createState() => _ShellState();
 }
 
-class _ShellState extends State<Shell> {
+class _ShellState extends State<Shell> with WidgetsBindingObserver {
   int tab = 0;
 
   List<NewsItem>? items;
@@ -150,6 +150,7 @@ class _ShellState extends State<Shell> {
   bool loading = true;
 
   bool pushOn = true;
+  String pushStatus = 'Checking...';
   StreamSubscription<RemoteMessage>? _sub;
 
   String nick = '';
@@ -159,6 +160,7 @@ class _ShellState extends State<Shell> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     loadProfile();
     load();
     if (widget.firebaseOk) {
@@ -170,7 +172,26 @@ class _ShellState extends State<Shell> {
   }
 
   @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      loadQuiet();
+    }
+  }
+
+  Future<void> loadQuiet() async {
+    try {
+      final list = await fetchNews();
+      if (!mounted) return;
+      setState(() {
+        items = list;
+        error = null;
+      });
+    } catch (_) {}
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _sub?.cancel();
     super.dispose();
   }
@@ -290,9 +311,16 @@ class _ShellState extends State<Shell> {
       if (pushOn) {
         final st = await fm.requestPermission();
         await fm.subscribeToTopic(pushTopic);
-        if (st.authorizationStatus != AuthorizationStatus.authorized) {
+        final ok = st.authorizationStatus == AuthorizationStatus.authorized;
+        if (mounted) {
+          setState(() => pushStatus =
+              ok ? 'Ready' : 'Blocked: ${st.authorizationStatus.name}');
+        }
+        if (!ok) {
           note('Notifications are blocked. Allow them in phone settings.');
         }
+      } else if (mounted) {
+        setState(() => pushStatus = 'Off');
       }
       _sub = FirebaseMessaging.onMessage.listen((RemoteMessage m) {
         if (!mounted) return;
@@ -300,6 +328,7 @@ class _ShellState extends State<Shell> {
         load();
       });
     } catch (e) {
+      if (mounted) setState(() => pushStatus = 'Error: $e');
       note('Push error: $e');
     }
   }
@@ -814,8 +843,8 @@ class _ShellState extends State<Shell> {
                     const Icon(Icons.notifications_rounded, color: accent),
                 title: const Text('News notifications'),
                 subtitle: Text(widget.firebaseOk
-                    ? 'Get a push when new server news appears'
-                    : 'Not available right now'),
+                    ? 'Status: $pushStatus'
+                    : 'Not available: ${firebaseError.isEmpty ? 'Firebase off' : firebaseError}'),
                 value: pushOn && widget.firebaseOk,
                 onChanged: widget.firebaseOk ? setPush : null,
               ),
