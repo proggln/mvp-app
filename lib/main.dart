@@ -115,6 +115,13 @@ Future<List<NewsItem>> fetchNews() async {
       .toList();
 }
 
+String formatPlaytime(int minutes) {
+  if (minutes < 60) return '${minutes}m';
+  final h = minutes ~/ 60;
+  final m = minutes % 60;
+  return m == 0 ? '${h}h' : '${h}h ${m}m';
+}
+
 String two(int n) => n.toString().padLeft(2, '0');
 
 String formatDate(DateTime d) {
@@ -183,6 +190,7 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
   String rank = 'Member';
   int coins = 0;
   int kills = 0;
+  int playtime = 0;
   bool linked = false;
   String since = '';
 
@@ -299,6 +307,7 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
           rank = (me['rank'] ?? 'Member').toString();
           coins = (me['coins'] as num?)?.toInt() ?? 0;
           kills = (me['kills'] as num?)?.toInt() ?? 0;
+          playtime = (me['playtime'] as num?)?.toInt() ?? 0;
           linked = me['linked'] == true;
         });
         await savePref('cardno', cardNo);
@@ -574,11 +583,11 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
             children: [
               Expanded(
                 child: StatTile(
-                  icon: Icons.workspace_premium_rounded,
+                  icon: Icons.schedule_rounded,
                   tint: const Color(0xFFE3F2FC),
                   color: accent,
-                  value: rank,
-                  label: 'Rank',
+                  value: formatPlaytime(playtime),
+                  label: 'Playtime',
                 ),
               ),
               const SizedBox(width: 10),
