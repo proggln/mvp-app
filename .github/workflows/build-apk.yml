@@ -1,0 +1,44 @@
+name: Build Android APK
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Create the Android project and add our code
+        run: |
+          flutter create --org org.playmvp --project-name app --platforms=android build_app
+          rm -rf build_app/test
+          cp -r lib/. build_app/lib/
+          python3 scripts/patch_manifest.py build_app/android/app/src/main/AndroidManifest.xml
+          if [ -f firebase/google-services.json ]; then
+            cp firebase/google-services.json build_app/android/app/google-services.json
+            python3 scripts/patch_gradle.py build_app/android
+          fi
+          cd build_app
+          flutter pub add http url_launcher firebase_core firebase_messaging shared_preferences
+
+      - name: Build the APK
+        working-directory: build_app
+        run: flutter build apk --release
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mvp-app-apk
+          path: build_app/build/app/outputs/flutter-apk/app-release.apk

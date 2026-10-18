@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "460112027055",
+    "project_id": "mvp-353a6",
+    "storage_bucket": "mvp-353a6.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:460112027055:android:02a43f305038a1e61e635a",
+        "android_client_info": {
+          "package_name": "org.playmvp.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCEjOiEwi2xGnoxUETp8mHCHrfd2w6se9s"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
