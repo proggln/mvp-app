@@ -208,22 +208,31 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
   }
 
   Future<void> loadProfile() async {
-    final prefs = await SharedPreferences.getInstance();
-    var no = prefs.getString('cardno');
+    SharedPreferences? prefs;
+    try {
+      prefs = await SharedPreferences.getInstance();
+    } catch (_) {
+      prefs = null;
+    }
+    var no = prefs?.getString('cardno');
     if (no == null || no.length != 8) {
       final r = Random.secure();
       no = List.generate(8, (_) => r.nextInt(10)).join();
-      await prefs.setString('cardno', no);
+      try {
+        await prefs?.setString('cardno', no);
+      } catch (_) {}
     }
-    var s = prefs.getString('since');
+    var s = prefs?.getString('since');
     if (s == null) {
       final n = DateTime.now();
       s = '${two(n.month)} / ${two(n.year % 100)}';
-      await prefs.setString('since', s);
+      try {
+        await prefs?.setString('since', s);
+      } catch (_) {}
     }
     if (!mounted) return;
     setState(() {
-      nick = prefs.getString('nick') ?? '';
+      nick = prefs?.getString('nick') ?? '';
       cardNo = no!;
       since = s!;
     });
@@ -275,8 +284,10 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
       },
     );
     if (result == null) return;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('nick', result);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('nick', result);
+    } catch (_) {}
     if (!mounted) return;
     setState(() => nick = result);
   }
@@ -304,8 +315,12 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
 
   Future<void> setupPush() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      pushOn = prefs.getBool('push') ?? true;
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        pushOn = prefs.getBool('push') ?? true;
+      } catch (_) {
+        pushOn = true;
+      }
       if (mounted) setState(() {});
       final fm = FirebaseMessaging.instance;
       if (pushOn) {
@@ -342,8 +357,10 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
       } else {
         await fm.unsubscribeFromTopic(pushTopic);
       }
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setBool('push', next);
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setBool('push', next);
+      } catch (_) {}
       if (!mounted) return;
       setState(() => pushOn = next);
     } catch (_) {
