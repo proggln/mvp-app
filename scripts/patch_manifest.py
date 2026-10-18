@@ -7,6 +7,7 @@ s = open(path, encoding="utf-8").read()
 perms = (
     '    <uses-permission android:name="android.permission.INTERNET"/>\n'
     '    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>\n'
+    '    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES"/>\n'
 )
 if "android.permission.INTERNET" not in s:
     s = s.replace("<application", perms + "    <application", 1)

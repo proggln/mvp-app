@@ -39,7 +39,7 @@ jobs:
             python3 scripts/patch_gradle.py build_app/android
           fi
           cd build_app
-          flutter pub add http url_launcher firebase_core firebase_messaging shared_preferences:2.3.5
+          flutter pub add http url_launcher firebase_core firebase_messaging ota_update shared_preferences:2.3.5
           flutter pub add dev:flutter_launcher_icons
           flutter pub get
           dart run flutter_launcher_icons
