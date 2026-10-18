@@ -16,8 +16,8 @@ kts = path.endswith(".kts")
 if kts:
     block = '''    signingConfigs {
         create("release") {
-            val props = java.util.Properties()
-            props.load(java.io.FileInputStream(rootProject.file("key.properties")))
+            val props = Properties()
+            props.load(FileInputStream(rootProject.file("key.properties")))
             keyAlias = props["keyAlias"] as String
             keyPassword = props["keyPassword"] as String
             storeFile = file(props["storeFile"] as String)
@@ -27,6 +27,8 @@ if kts:
 
 '''
     use = 'signingConfig = signingConfigs.getByName("release")'
+    if "import java.util.Properties" not in s:
+        s = "import java.util.Properties\nimport java.io.FileInputStream\n" + s
 else:
     block = '''    signingConfigs {
         release {
