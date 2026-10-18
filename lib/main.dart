@@ -1223,14 +1223,17 @@ class StatTile extends StatelessWidget {
                 : Icon(icon, size: 17, color: color),
           ),
           const SizedBox(height: 8),
-          Text(
-            value,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              fontWeight: FontWeight.w800,
-              fontSize: 19,
-              color: inkColor,
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(
+              value,
+              maxLines: 1,
+              style: const TextStyle(
+                fontWeight: FontWeight.w800,
+                fontSize: 19,
+                color: inkColor,
+              ),
             ),
           ),
           Text(label, style: const TextStyle(color: mutedColor, fontSize: 11)),
