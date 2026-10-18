@@ -305,7 +305,7 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
     }
   }
 
-  Future<void> openLink() async {
+  Future<void> startLink() async {
     if (token.isEmpty) await refreshProfile();
     if (token.isEmpty) {
       note('No connection. Check your internet and try again.');
@@ -564,7 +564,7 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
             cardNo: cardNum,
             since: since,
             rank: rank,
-            onTap: linked ? null : openLink,
+            onTap: linked ? null : startLink,
           ),
           const SizedBox(height: 18),
           Row(
@@ -638,7 +638,7 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
                       color: Color(0xFF2E9E5B), size: 30)
                 else
                   FilledButton(
-                    onPressed: openLink,
+                    onPressed: startLink,
                     style: FilledButton.styleFrom(
                       minimumSize: const Size(72, 44),
                       shape: const StadiumBorder(),
@@ -917,7 +917,7 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
                     ? const Icon(Icons.check_circle_rounded,
                         color: Color(0xFF2E9E5B))
                     : const Icon(Icons.chevron_right_rounded),
-                onTap: linked ? null : openLink,
+                onTap: linked ? null : startLink,
               ),
               const Divider(height: 1),
               SwitchListTile(
