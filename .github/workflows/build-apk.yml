@@ -5,6 +5,9 @@ on:
     branches: [main]
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   apk:
     runs-on: ubuntu-latest
@@ -49,3 +52,11 @@ jobs:
         with:
           name: mvp-app-apk
           path: build_app/build/app/outputs/flutter-apk/app-release.apk
+
+      - name: Publish the APK for download
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp build_app/build/app/outputs/flutter-apk/app-release.apk mvp-app.apk
+          gh release delete latest --cleanup-tag --yes || true
+          gh release create latest mvp-app.apk --title "MVP app (latest)" --notes "Latest Android build of the MVP app."
