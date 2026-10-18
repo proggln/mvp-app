@@ -1623,29 +1623,31 @@ class NewsPicture extends StatelessWidget {
   const NewsPicture({super.key, required this.url, required this.height});
 
   final String url;
-  final double? height;
+  final double? height; // kept for old callers; pictures are always 16:9
 
   @override
   Widget build(BuildContext context) {
     return ClipRRect(
       borderRadius: BorderRadius.circular(14),
-      child: Image.network(
-        url,
-        width: double.infinity,
-        height: height,
-        fit: height == null ? BoxFit.fitWidth : BoxFit.cover,
-        loadingBuilder: (context, child, progress) {
-          if (progress == null) return child;
-          return Container(
-            width: double.infinity,
-            height: height ?? 180,
-            color: const Color(0xFFE3F2FC),
-            child: const Center(
-              child: CircularProgressIndicator(color: accent, strokeWidth: 2),
-            ),
-          );
-        },
-        errorBuilder: (context, error, stack) => const SizedBox.shrink(),
+      child: AspectRatio(
+        aspectRatio: 16 / 9,
+        child: Image.network(
+          url,
+          width: double.infinity,
+          fit: BoxFit.cover,
+          filterQuality: FilterQuality.high,
+          loadingBuilder: (context, child, progress) {
+            if (progress == null) return child;
+            return Container(
+              color: const Color(0xFFE3F2FC),
+              child: const Center(
+                child:
+                    CircularProgressIndicator(color: accent, strokeWidth: 2),
+              ),
+            );
+          },
+          errorBuilder: (context, error, stack) => const SizedBox.shrink(),
+        ),
       ),
     );
   }
