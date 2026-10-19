@@ -71,6 +71,7 @@ jobs:
           code=${PIPESTATUS[0]}
           if [ "$code" -ne 0 ]; then
             grep -E "What went wrong" -A10 build.log | head -24 | while IFS= read -r l; do echo "::error::$l"; done
+            grep -n "FAILURE" build.log | head -1 | cut -d: -f1 | while read n; do sed -n "$((n>40?n-40:1)),$((n-1))p" build.log | grep -v "^\s*$" | cut -c1-200 | while IFS= read -r l; do echo "::error::$l"; done; done
             grep -E "rror:|Error:|e: " build.log | head -8 | while IFS= read -r l; do echo "::error::$l"; done
           fi
           exit $code
