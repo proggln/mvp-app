@@ -2136,7 +2136,6 @@ class NewsCard extends StatelessWidget {
           ),
         ),
         ),
-      ),
     );
   }
 }
