@@ -424,6 +424,7 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
   int kills = 0;
   int playtime = 0;
   bool linked = false;
+  String pendingNick = '';
   String storageNote = '';
   String since = '';
   String themeId = 'default';
@@ -662,6 +663,7 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
           kills = (me['kills'] as num?)?.toInt() ?? 0;
           playtime = (me['playtime'] as num?)?.toInt() ?? 0;
           linked = me['linked'] == true;
+          pendingNick = (me['pending_nick'] ?? '').toString();
           themeId = (me['theme'] ?? 'default').toString();
           themes = ((me['themes'] as List<dynamic>?) ?? <dynamic>[])
               .map((e) => CardStyle.fromJson(e as Map<String, dynamic>))
@@ -673,6 +675,69 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
       }
     } catch (_) {
       // offline: keep what we have
+    }
+  }
+
+  Future<void> openRegister() async {
+    if (linked) return;
+    if (token.isEmpty) await refreshProfile();
+    if (token.isEmpty) {
+      note('No connection. Check your internet and try again.');
+      return;
+    }
+    if (pendingNick.isNotEmpty) {
+      note('Waiting for registration (wait some time).');
+      return;
+    }
+    final c = TextEditingController();
+    final choice = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Register'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+                'Type your exact Minecraft nickname. An admin will confirm it, this can take some time.'),
+            const SizedBox(height: 12),
+            TextField(
+              controller: c,
+              autofocus: true,
+              maxLength: 20,
+              decoration: const InputDecoration(hintText: 'Nickname'),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.of(ctx).pop('code'),
+              child: const Text('Use a game code')),
+          FilledButton(
+              onPressed: () => Navigator.of(ctx).pop(c.text.trim()),
+              child: const Text('Send')),
+        ],
+      ),
+    );
+    if (choice == null || choice.isEmpty) return;
+    if (choice == 'code') {
+      startLink();
+      return;
+    }
+    if (!RegExp(r'^[A-Za-z0-9_.]{2,20}$').hasMatch(choice)) {
+      note('Use 2-20 letters, digits, _ or .');
+      return;
+    }
+    try {
+      final r = await apiCall('POST', '/api/app/nick-request',
+          token: token, data: {'nick': choice});
+      if (r['_status'] == 200) {
+        setState(() => pendingNick = (r['pending_nick'] ?? choice).toString());
+        note('Sent. Waiting for registration (wait some time).');
+      } else {
+        note('Could not send the request. Try again later.');
+      }
+    } catch (_) {
+      note('No connection. Check your internet.');
     }
   }
 
@@ -1191,7 +1256,7 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
             rank: rank,
             colors: cardColors,
             animated: themeId == 'aurora',
-            onTap: linked ? null : startLink,
+            onTap: linked ? null : openRegister,
           ),
           const SizedBox(height: 18),
           Row(
@@ -1244,7 +1309,11 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        linked ? 'Account linked' : 'Link your account',
+                        linked
+                            ? 'Account linked'
+                            : (pendingNick.isNotEmpty
+                                ? 'Registration pending'
+                                : 'Register your account'),
                         style: const TextStyle(
                           fontWeight: FontWeight.w600,
                           fontSize: 14,
@@ -1255,7 +1324,9 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
                       Text(
                         linked
                             ? 'Playing as $nick'
-                            : 'Get a code, then type /link CODE in the game.',
+                            : (pendingNick.isNotEmpty
+                                ? 'Waiting for registration (wait some time). Requested: $pendingNick'
+                                : 'Pick your Minecraft nickname. An admin will confirm it.'),
                         style: const TextStyle(color: mutedColor, fontSize: 12),
                       ),
                     ],
@@ -1265,14 +1336,16 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
                 if (linked)
                   const Icon(Icons.check_circle_rounded,
                       color: Color(0xFF2E9E5B), size: 30)
+                else if (pendingNick.isNotEmpty)
+                  const Icon(Icons.hourglass_top_rounded, color: accent, size: 28)
                 else
                   FilledButton(
-                    onPressed: startLink,
+                    onPressed: openRegister,
                     style: FilledButton.styleFrom(
                       minimumSize: const Size(72, 44),
                       shape: const StadiumBorder(),
                     ),
-                    child: const Text('Link'),
+                    child: const Text('Register'),
                   ),
               ],
             ),
@@ -1579,12 +1652,16 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
               ListTile(
                 leading: const Icon(Icons.person_rounded, color: accent),
                 title: const Text('Game account'),
-                subtitle: Text(linked ? nick : 'Not linked. Tap to link.'),
+                subtitle: Text(linked
+                    ? nick
+                    : (pendingNick.isNotEmpty
+                        ? 'Waiting for registration (wait some time)'
+                        : 'Not registered. Tap to choose a nickname.')),
                 trailing: linked
                     ? const Icon(Icons.check_circle_rounded,
                         color: Color(0xFF2E9E5B))
                     : const Icon(Icons.chevron_right_rounded),
-                onTap: linked ? null : startLink,
+                onTap: linked ? null : openRegister,
               ),
               const Divider(height: 1),
               ListTile(
