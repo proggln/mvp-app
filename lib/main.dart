@@ -1110,6 +1110,7 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
             since: since,
             rank: rank,
             colors: cardColors,
+            animated: themeId == 'aurora',
             onTap: linked ? null : startLink,
           ),
           const SizedBox(height: 18),
@@ -1565,8 +1566,10 @@ class MemberCard extends StatefulWidget {
     required this.rank,
     required this.onTap,
     this.colors = const [accentLight, accent, accentDark],
+    this.animated = false,
   });
 
+  final bool animated;
   final List<Color> colors;
   final String nick;
   final String cardNo;
@@ -1578,8 +1581,18 @@ class MemberCard extends StatefulWidget {
   State<MemberCard> createState() => _MemberCardState();
 }
 
-class _MemberCardState extends State<MemberCard> {
+class _MemberCardState extends State<MemberCard>
+    with SingleTickerProviderStateMixin {
   Offset tilt = Offset.zero;
+  late final AnimationController _anim = AnimationController(
+      vsync: this, duration: const Duration(seconds: 7))
+    ..repeat();
+
+  @override
+  void dispose() {
+    _anim.dispose();
+    super.dispose();
+  }
 
   String get number => widget.cardNo.length == 8
       ? '${widget.cardNo.substring(0, 4)} ${widget.cardNo.substring(4)}'
@@ -1613,15 +1626,32 @@ class _MemberCardState extends State<MemberCard> {
             child: child,
           );
         },
-        child: Container(
+        child: AnimatedBuilder(
+          animation: _anim,
+          builder: (context, inner) => Container(
           height: 216,
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(26),
             gradient: LinearGradient(
-              colors: widget.colors,
-              stops: const [0, 0.55, 1],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
+              colors: widget.animated
+                  ? [
+                      widget.colors[0],
+                      widget.colors[1],
+                      widget.colors[2],
+                      widget.colors[1],
+                      widget.colors[0],
+                    ]
+                  : widget.colors,
+              stops: widget.animated
+                  ? const [0, 0.25, 0.5, 0.75, 1]
+                  : const [0, 0.55, 1],
+              begin: widget.animated
+                  ? Alignment(-1 + 2 * _anim.value, -1)
+                  : Alignment.topLeft,
+              end: widget.animated
+                  ? Alignment(1 + 2 * _anim.value, 1)
+                  : Alignment.bottomRight,
+              tileMode: widget.animated ? TileMode.mirror : TileMode.clamp,
             ),
             boxShadow: [
               BoxShadow(
@@ -2083,6 +2113,7 @@ class NewsCard extends StatelessWidget {
               ],
             ),
           ),
+        ),
         ),
       ),
     );
