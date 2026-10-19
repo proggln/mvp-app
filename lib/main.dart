@@ -9,7 +9,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
-import 'package:ota_update/ota_update.dart';
+import 'package:open_filex/open_filex.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -2522,7 +2522,8 @@ class UpdateDialog extends StatefulWidget {
 }
 
 class _UpdateDialogState extends State<UpdateDialog> {
-  StreamSubscription<OtaEvent>? _sub;
+  http.Client? _client;
+  bool _cancelled = false;
   double? progress;
   String text = 'Starting the download...';
   bool failed = false;
@@ -2534,66 +2535,79 @@ class _UpdateDialogState extends State<UpdateDialog> {
     _start();
   }
 
-  void _start() {
-    setState(() {
-      failed = false;
-      done = false;
-      progress = null;
-      text = 'Starting the download...';
-    });
-    try {
-      _sub = OtaUpdate()
-          .execute(apkUrl, destinationFilename: 'mvp-app.apk')
-          .listen(
-        (e) {
-          if (!mounted) return;
-          setState(() {
-            switch (e.status) {
-              case OtaStatus.DOWNLOADING:
-                final v = int.tryParse(e.value ?? '') ?? 0;
-                progress = v / 100;
-                text = 'Downloading... $v%';
-                break;
-              case OtaStatus.INSTALLING:
-                progress = 1;
-                text = 'Opening the installer. Confirm the update on the next screen.';
-                done = true;
-                break;
-              case OtaStatus.INSTALLATION_DONE:
-                text = 'Done.';
-                done = true;
-                break;
-              case OtaStatus.CANCELED:
-                text = 'Update canceled.';
-                failed = true;
-                break;
-              default:
-                text = e.status == OtaStatus.PERMISSION_NOT_GRANTED_ERROR
-                    ? 'Allow installing apps from MVP in the Android settings, then try again.'
-                    : 'The update could not be installed.';
-                failed = true;
-            }
-          });
-        },
-        onError: (_) {
-          if (!mounted) return;
-          setState(() {
-            text = 'The update could not be installed.';
-            failed = true;
-          });
-        },
-      );
-    } catch (_) {
+  Future<void> _start() async {
+    _cancelled = false;
+    if (mounted) {
       setState(() {
-        text = 'The update could not be installed.';
-        failed = true;
+        failed = false;
+        done = false;
+        progress = null;
+        text = 'Starting the download...';
       });
+    }
+    final client = http.Client();
+    _client = client;
+    IOSink? sink;
+    try {
+      final file = File('${Directory.systemTemp.path}/mvp-app.apk');
+      if (await file.exists()) await file.delete();
+      final res = await client
+          .send(http.Request('GET', Uri.parse(apkUrl)))
+          .timeout(const Duration(seconds: 30));
+      if (res.statusCode != 200) throw Exception('http ${res.statusCode}');
+      final total = res.contentLength ?? 0;
+      var got = 0;
+      sink = file.openWrite();
+      await for (final chunk in res.stream) {
+        if (_cancelled) throw Exception('cancelled');
+        sink.add(chunk);
+        got += chunk.length;
+        if (mounted && total > 0) {
+          setState(() {
+            progress = got / total;
+            text = 'Downloading... ${(got * 100 ~/ total)}%';
+          });
+        }
+      }
+      await sink.flush();
+      await sink.close();
+      sink = null;
+      if (!mounted) return;
+      setState(() {
+        progress = 1;
+        text = 'Opening the installer. Confirm the update on the next screen.';
+        done = true;
+      });
+      final r = await OpenFilex.open(file.path,
+          type: 'application/vnd.android.package-archive');
+      if (!mounted) return;
+      if (r.type != ResultType.done) {
+        setState(() {
+          done = false;
+          failed = true;
+          text =
+              'Allow installing apps from MVP in the Android settings, then tap Try again.';
+        });
+      }
+    } catch (_) {
+      try {
+        await sink?.close();
+      } catch (_) {}
+      if (!mounted || _cancelled) return;
+      setState(() {
+        failed = true;
+        done = false;
+        text = 'The update could not be downloaded. Check your internet.';
+      });
+    } finally {
+      client.close();
     }
   }
 
   @override
   void dispose() {
-    _sub?.cancel();
+    _cancelled = true;
+    _client?.close();
     super.dispose();
   }
 
@@ -2617,7 +2631,7 @@ class _UpdateDialogState extends State<UpdateDialog> {
             onPressed: () => openLink(apkUrl),
             child: const Text('Download in browser'),
           ),
-          TextButton(onPressed: _start, child: const Text('Try again')),
+          TextButton(onPressed: () => _start(), child: const Text('Try again')),
         ],
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
