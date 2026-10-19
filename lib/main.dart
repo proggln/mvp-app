@@ -314,6 +314,9 @@ class VideoTile extends StatelessWidget {
 
 // Build number comes from the GitHub build (--dart-define=BUILD=...).
 const int kBuild = int.fromEnvironment('BUILD', defaultValue: 0);
+
+/// Shown version: build 35 -> v35.0
+String get kVersion => kBuild == 0 ? 'dev' : 'v$kBuild.0';
 const String apkUrl =
     'https://github.com/proggln/mvp-app/releases/latest/download/mvp-app.apk';
 
@@ -863,6 +866,57 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
         }
       });
       note('Could not save your vote. Try again.');
+    }
+  }
+
+  Future<void> webLogin() async {
+    if (token.isEmpty) {
+      note('Your card is not ready yet. Try again in a moment.');
+      return;
+    }
+    final c = TextEditingController();
+    final code = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Sign in to the website'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+                'Open the MVP website, tap Sign in and enter the 6-character code you see there.'),
+            const SizedBox(height: 12),
+            TextField(
+              controller: c,
+              autofocus: true,
+              textCapitalization: TextCapitalization.characters,
+              maxLength: 6,
+              decoration: const InputDecoration(hintText: 'CODE'),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text('Cancel')),
+          FilledButton(
+              onPressed: () => Navigator.of(ctx).pop(c.text.trim()),
+              child: const Text('Sign in')),
+        ],
+      ),
+    );
+    if (code == null || code.isEmpty) return;
+    try {
+      final r = await apiCall('POST', '/api/app/weblogin',
+          token: token, data: {'code': code});
+      if (r['_status'] == 200) {
+        note('Done. The website signs in within a few seconds.');
+      } else if (r['_status'] == 404) {
+        note('That code is wrong or expired. Check the site.');
+      } else {
+        note('Could not sign in. Try again later.');
+      }
+    } catch (_) {
+      note('No connection. Check your internet.');
     }
   }
 
@@ -1560,10 +1614,17 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
               ),
               const Divider(height: 1),
               ListTile(
+                leading: const Icon(Icons.login_rounded, color: accent),
+                title: const Text('Sign in to the website'),
+                subtitle: const Text('Enter the code shown on the site'),
+                onTap: webLogin,
+              ),
+              const Divider(height: 1),
+              ListTile(
                 leading:
                     const Icon(Icons.system_update_rounded, color: accent),
                 title: const Text('Check for updates'),
-                subtitle: Text(kBuild == 0 ? 'Version: dev' : 'Build $kBuild'),
+                subtitle: Text('Version: $kVersion'),
                 onTap: () => checkUpdate(manual: true),
               ),
             ],
