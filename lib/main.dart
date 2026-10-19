@@ -167,76 +167,101 @@ class CardStyle {
       );
 }
 
-// Pixel icons for medals (12x12, drawn in code, no emoji). Same set as on the website.
-const Map<String, int> kMedalPalette = {
-  'Y': 0xFFFFCF3A,
-  'y': 0xFFC98A00,
-  'R': 0xFFE8424F,
-  'B': 0xFF2EA2EA,
-  'O': 0xFFFF8A1F,
-  'k': 0xFF3A1D08,
-  'G': 0xFF3FAE4A,
-  'g': 0xFF2A7A33,
-  'W': 0xFFF2F6FA,
-  'w': 0xFFB9C6D3,
-  'I': 0xFFBFE9FF,
-  'C': 0xFF5EE3F0,
-  'c': 0xFFD6FBFF,
-  'T': 0xFF8A5A2B,
-  'P': 0xFF9AA7B4,
-  'D': 0xFF1F6FA8,
+// Line icons (24x24 grid, stroke 2, round ends), drawn in code. Same set as on the website.
+const Map<String, List<String>> kIconPaths = {
+  'inbox': ['M3 13 L5.5 5.5 Q6 4 7.5 4 L16.5 4 Q18 4 18.5 5.5 L21 13 L21 18 Q21 20 19 20 L5 20 Q3 20 3 18 Z', 'M3 13 L8 13 L9.5 15.5 L14.5 15.5 L16 13 L21 13'],
+  'medal': ['M8.5 11 L5 3 L9 3 L12 9', 'M15.5 11 L19 3 L15 3 L12 9', 'M10.5 15.5 L12 14 L12 18'],
+  'star': ['M12 3 L14.7 8.6 L20.6 9.3 L16.3 13.4 L17.4 19.4 L12 16.5 L6.6 19.4 L7.7 13.4 L3.4 9.3 L9.3 8.6 Z'],
+  'trophy': ['M8 4 L16 4 L16 10 Q16 14 12 14 Q8 14 8 10 Z', 'M8 6 L5.5 6 Q4 6 4 7.5 Q4 10.5 8 11', 'M16 6 L18.5 6 Q20 6 20 7.5 Q20 10.5 16 11', 'M12 14 L12 17', 'M8 20 L16 20 L15 17 L9 17 Z'],
+  'pumpkin': ['M12 7 C6 7 3 9.5 3 13.5 C3 17.5 6 20 12 20 C18 20 21 17.5 21 13.5 C21 9.5 18 7 12 7 Z', 'M12 7 C9.5 9 9.5 18 12 20', 'M12 7 C14.5 9 14.5 18 12 20', 'M12 7 L12 4.5 Q12.5 3 14.5 3.5'],
+  'ghost': ['M6 20 L6 10 C6 6.5 8.7 4 12 4 C15.3 4 18 6.5 18 10 L18 20 L16 18.5 L14 20 L12 18.5 L10 20 L8 18.5 Z'],
+  'tree': ['M12 3 L17 9 L14.5 9 L19 15 L5 15 L9.5 9 L7 9 Z', 'M12 15 L12 20', 'M9 20 L15 20'],
+  'snow': ['M12 3 L12 21', 'M4.2 7.5 L19.8 16.5', 'M4.2 16.5 L19.8 7.5', 'M10 4.5 L12 6.5 L14 4.5', 'M10 19.5 L12 17.5 L14 19.5'],
+  'fire': ['M12 21 C8 21 6 18.5 6 15.5 C6 11.5 9 10 9.5 6 C11.5 7.5 12.5 9.5 12.5 11 C14 10 14.5 8.5 14.5 7 C16.5 9 18 11.5 18 15 C18 18.5 15.5 21 12 21 Z', 'M12 21 C10.5 21 9.5 19.8 9.5 18.3 C9.5 16.5 11 15.8 12 14 C13 15.8 14.5 16.5 14.5 18.3 C14.5 19.8 13.5 21 12 21 Z'],
+  'sword': ['M20 4 L20 8 L10 18 L6 14 L16 4 Z', 'M5 13 L11 19', 'M7.5 16.5 L4 20'],
+  'diamond': ['M7 4 L17 4 L21 9 L12 20 L3 9 Z', 'M3 9 L21 9', 'M9.5 4 L8 9 L12 20 L16 9 L14.5 4'],
+  'crown': ['M4 17 L3 7 L8 11 L12 5 L16 11 L21 7 L20 17 Z', 'M4 20 L20 20'],
+  'heart': ['M12 20 C12 20 3 14.5 3 8.8 C3 6 5.2 4 7.8 4 C9.6 4 11.1 5 12 6.5 C12.9 5 14.4 4 16.2 4 C18.8 4 21 6 21 8.8 C21 14.5 12 20 12 20 Z'],
+  'flag': ['M5 21 L5 4', 'M5 4 L17 4 L15 8 L17 12 L5 12'],
 };
-const Map<String, List<String>> kMedalIcons = {
-  'medal': ['..RR....BB..', '..RRR..BBB..', '...RRR.BB...', '....RRBB....', '.....yy.....', '...yYYYYy...', '..yYYyyYYy..', '..YYyYYyYY..', '..YYyYYyYY..', '..yYYyyYYy..', '...yYYYYy...', '.....yy.....'],
-  'star': ['.....YY.....', '.....YY.....', '....YYYY....', '....YYYY....', 'YYYYYYYYYYYY', '.YYYYYYYYYY.', '..YYYYYYYY..', '...YYYYYY...', '...YYYYYY...', '..YYY..YYY..', '..YY....YY..', '.YY......YY.'],
-  'trophy': ['.YYYYYYYYYY.', 'YYYYYYYYYYYY', 'Y.YYYYYYyY.Y', 'Y.YYYYYYyY.Y', '.YYYYYYYyYY.', '...YYYYyY...', '....YYyY....', '.....yY.....', '.....yY.....', '....yYYY....', '...TTTTTT...', '...TTTTTT...'],
-  'pumpkin': ['.....gg.....', '.....g......', '..OOOOOOOO..', '.OOOOOOOOOO.', 'OOkkOOOOkkOO', 'OOkkOOOOkkOO', 'OOOOOkkOOOOO', 'OOOOOOOOOOOO', 'OOkOkkkkOkOO', 'OOOkkkkkkOOO', '.OOOOOOOOOO.', '..OOOOOOOO..'],
-  'ghost': ['....WWWW....', '..WWWWWWWW..', '.WWWWWWWWWW.', '.WWkkWWkkWW.', '.WWkkWWkkWW.', '.WWWWWWWWWW.', '.WWWWkkWWWW.', '.WWWWkkWWWW.', '.WWWWWWWWWW.', '.WWWWWWWWWW.', '.WWW.WW.WWW.', '.WW...W..WW.'],
-  'tree': ['.....YY.....', '.....GG.....', '....GGGG....', '...GGRGGG...', '....GGGG....', '...GGGGBG...', '..GGRGGGGG..', '...GGGGGG...', '..GGGGGGYG..', '.GGGGRGGGGG.', '.....TT.....', '.....TT.....'],
-  'snow': ['.....I......', '...I.I.I....', '....III.....', '.I...I...I..', '..I..I..I...', 'IIIIIIIIIII.', '..I..I..I...', '.I...I...I..', '....III.....', '...I.I.I....', '.....I......', '............'],
-  'fire': ['.....R......', '....RR......', '....RRR..R..', '...RRRR.RR..', '..RRORRRRR..', '..RROORRRR..', '.RROOOORRRR.', '.RROOYOORRR.', '.RROYYYORRR.', '.RROYYYYORR.', '..RROYYORR..', '...RRRRRR...'],
-  'sword': ['..........WW', '.........WwW', '........WwW.', '.......WwW..', '......WwW...', '..Y..WwW....', '...YWwW.....', '....YW......', '...TTY......', '..TT..Y.....', '.TT.........', 'TT..........'],
-  'diamond': ['............', '............', '...CCCCCC...', '..CcCCCCcC..', '.CcCCCCCCcC.', 'CCCCCCCCCCCC', '.CCCCCCCCCC.', '..CCCCCCCC..', '...CCCCCC...', '....CCCC....', '.....CC.....', '............'],
-  'crown': ['............', '............', 'Y....Y....Y.', 'YY..YYY..YY.', 'YYY.YYY.YYY.', 'YYYYYYYYYYY.', 'YYRYYBYYRYY.', 'YYYYYYYYYYY.', 'yyyyyyyyyyy.', '............', '............', '............'],
-  'heart': ['............', '.RRR....RRR.', 'RRRRR..RRRRR', 'RRWRRRRRRRRR', 'RRRRRRRRRRRR', 'RRRRRRRRRRRR', '.RRRRRRRRRR.', '..RRRRRRRR..', '...RRRRRR...', '....RRRR....', '.....RR.....', '............'],
-  'mail': ['............', '............', 'DDDDDDDDDDDD', 'DDIIIIIIIIDD', 'DIDIIIIIIDID', 'DIIDIIIIDIID', 'DIIIDDDDIIID', 'DIIIIIIIIIID', 'DIIIIIIIIIID', 'DDDDDDDDDDDD', '............', '............'],
-  'flag': ['.P..........', '.PBBBBBB....', '.PBBBBBBB...', '.PBBWWBBBB..', '.PBBWWBBBBB.', '.PBBBBBBBB..', '.PBBBBBBB...', '.P..........', '.P..........', '.P..........', '.P..........', 'PPP.........'],
+const Map<String, List<List<double>>> kIconCircles = {
+  'medal': [[12.0, 16.0, 5.0]],
+  'ghost': [[10.0, 10.0, 1.0], [14.0, 10.0, 1.0]],
 };
 
-class PixelIcon extends StatelessWidget {
-  const PixelIcon(this.name, {super.key, this.size = 24});
+// draws one line icon in the given colour
+class LineIcon extends StatelessWidget {
+  const LineIcon(this.name, {super.key, this.size = 24, this.color = accentLight});
   final String name;
   final double size;
+  final Color color;
 
   @override
   Widget build(BuildContext context) => SizedBox(
         width: size,
         height: size,
-        child: CustomPaint(painter: _PixelPainter(kMedalIcons[name] ?? kMedalIcons['medal']!)),
+        child: CustomPaint(painter: _LinePainter(name, color)),
       );
 }
 
-class _PixelPainter extends CustomPainter {
-  _PixelPainter(this.rows);
-  final List<String> rows;
+class _LinePainter extends CustomPainter {
+  _LinePainter(this.name, this.color);
+  final String name;
+  final Color color;
+  static final RegExp _tok = RegExp(r'[MLCQZ]|-?[0-9]*\.?[0-9]+');
+
+  static Path parse(String d, double k) {
+    final t = _tok.allMatches(d).map((m) => m.group(0)!).toList();
+    final p = Path();
+    var i = 0;
+    var cmd = 'M';
+    double n() => double.parse(t[i++]) * k;
+    while (i < t.length) {
+      if (RegExp(r'^[MLCQZ]$').hasMatch(t[i])) cmd = t[i++];
+      switch (cmd) {
+        case 'M':
+          p.moveTo(n(), n());
+          cmd = 'L';
+          break;
+        case 'L':
+          p.lineTo(n(), n());
+          break;
+        case 'Q':
+          p.quadraticBezierTo(n(), n(), n(), n());
+          break;
+        case 'C':
+          p.cubicTo(n(), n(), n(), n(), n(), n());
+          break;
+        case 'Z':
+          p.close();
+          break;
+      }
+    }
+    return p;
+  }
 
   @override
   void paint(Canvas canvas, Size size) {
-    final c = size.width / 12;
-    final paint = Paint()..isAntiAlias = false;
-    for (var y = 0; y < rows.length; y++) {
-      for (var x = 0; x < rows[y].length; x++) {
-        final col = kMedalPalette[rows[y][x]];
-        if (col == null) continue;
-        paint.color = Color(col);
-        canvas.drawRect(Rect.fromLTWH(x * c, y * c, c + 0.5, c + 0.5), paint);
-      }
+    final k = size.width / 24;
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2 * k
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round;
+    final paths = kIconPaths[name] ?? kIconPaths['medal']!;
+    for (final d in paths) {
+      canvas.drawPath(parse(d, k), paint);
+    }
+    for (final c in kIconCircles[name] ?? const <List<double>>[]) {
+      canvas.drawCircle(Offset(c[0] * k, c[1] * k), c[2] * k, paint);
     }
   }
 
   @override
-  bool shouldRepaint(_PixelPainter old) => old.rows != rows;
+  bool shouldRepaint(_LinePainter old) => old.name != name || old.color != color;
 }
+
 
 // ---------------------------------------------------------------- inbox
 
@@ -331,7 +356,7 @@ class _InboxPageState extends State<InboxPage> {
               Padding(
                 padding: const EdgeInsets.all(40),
                 child: Column(children: [
-                  const PixelIcon('mail', size: 56),
+                  const LineIcon('inbox', size: 56, color: accentLight),
                   const SizedBox(height: 12),
                   Text('No messages yet. Messages from the server and the team will appear here.',
                       textAlign: TextAlign.center, style: TextStyle(color: mutedColor)),
@@ -397,7 +422,7 @@ class Medal {
     return Medal(
       name: (j['name'] ?? '').toString(),
       description: (j['description'] ?? '').toString(),
-      icon: kMedalIcons.containsKey((j['icon'] ?? '').toString()) ? (j['icon'] ?? '').toString() : 'medal',
+      icon: kIconPaths.containsKey((j['icon'] ?? '').toString()) ? (j['icon'] ?? '').toString() : 'medal',
       color: Color(int.tryParse('FF$hex', radix: 16) ?? 0xFF0070B8),
       awardedAt: (j['awarded_at'] as num?)?.toInt() ?? 0,
     );
@@ -441,7 +466,7 @@ class MedalTile extends StatelessWidget {
                   color: medal.color.withOpacity(0.16),
                   borderRadius: BorderRadius.circular(14),
                 ),
-                child: PixelIcon(medal.icon, size: 28),
+                child: LineIcon(medal.icon, size: 24, color: medal.color),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -1655,7 +1680,7 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
                         clipBehavior: Clip.none,
                         alignment: Alignment.center,
                         children: [
-                          const PixelIcon('mail', size: 26),
+                          const LineIcon('inbox', size: 24, color: accentLight),
                           if (inboxUnread > 0)
                             Positioned(
                               top: -2,
@@ -2132,8 +2157,8 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
                 width: 40,
                 height: 40,
                 alignment: Alignment.center,
-                decoration: BoxDecoration(color: tintAmber, borderRadius: BorderRadius.circular(12)),
-                child: const PixelIcon('medal', size: 26),
+                decoration: BoxDecoration(color: tintBlue, borderRadius: BorderRadius.circular(12)),
+                child: const LineIcon('medal', size: 24, color: accentLight),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -2147,7 +2172,7 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
                         ? Text('See your medals and achievements', style: TextStyle(color: mutedColor, fontSize: 12))
                         : Row(children: [
                             for (final m in preview)
-                              Padding(padding: const EdgeInsets.only(right: 5), child: PixelIcon(m.icon, size: 18)),
+                              Padding(padding: const EdgeInsets.only(right: 5), child: LineIcon(m.icon, size: 18, color: m.color)),
                           ]),
                   ],
                 ),
