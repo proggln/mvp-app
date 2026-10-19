@@ -522,6 +522,7 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
       colors: const [Color(0xFF5CFFB0), Color(0xFF7A5CFF), Color(0xFF0B1030)]);
   List<CardStyle> themes = <CardStyle>[];
   List<Medal> medals = <Medal>[];
+  int deleteAt = 0;
 
   @override
   void initState() {
@@ -758,6 +759,7 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
               .toList();
           themes.add(auroraStyle);
           if (localTheme == 'aurora') themeId = 'aurora';
+          deleteAt = (me['delete_at'] as num?)?.toInt() ?? 0;
           medals = ((me['medals'] as List<dynamic>?) ?? <dynamic>[])
               .whereType<Map<String, dynamic>>()
               .map(Medal.fromJson)
@@ -1296,6 +1298,7 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.fromLTRB(22, 14, 22, 24),
         children: [
+          if (deleteAt > 0) _deleteBanner(),
           for (final e in events.where((x) => x.pinned))
             EventCard(key: ValueKey('p${e.id}'), item: e),
           Row(
@@ -1687,6 +1690,91 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
 
   // -------------------------------------------------------- settings tab
 
+  String fmtDeleteDate(int ms) {
+    const m = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+    final d = DateTime.fromMillisecondsSinceEpoch(ms);
+    final hh = d.hour.toString().padLeft(2, '0'), mm = d.minute.toString().padLeft(2, '0');
+    return '${m[d.month - 1]} ${d.day}, ${d.year} at $hh:$mm';
+  }
+
+  Widget _deleteBanner() {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 14),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFDE4E6),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFF2A7AE)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Your account will be deleted on ${fmtDeleteDate(deleteAt)}.',
+              style: const TextStyle(fontWeight: FontWeight.w700, color: Color(0xFF8E1F2A))),
+          const SizedBox(height: 4),
+          const Text('Your card, medals and stats will be removed. Changed your mind?',
+              style: TextStyle(color: Color(0xFF8E1F2A), fontSize: 13)),
+          const SizedBox(height: 10),
+          FilledButton(
+            onPressed: cancelDelete,
+            style: FilledButton.styleFrom(backgroundColor: accent),
+            child: const Text('Cancel deletion'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> askDelete() async {
+    if (token.isEmpty) {
+      note('No connection. Check your internet and try again.');
+      return;
+    }
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete account?'),
+        content: const Text(
+            'Your MVP card, medals, card styles and stats in the app and on the website will be deleted in 3 days. '
+            'Until then you can cancel it here or on the website. Your Minecraft account and your items in the game are not affected.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Keep my account')),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: FilledButton.styleFrom(backgroundColor: const Color(0xFFC0343F)),
+            child: const Text('Delete in 3 days'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    try {
+      final r = await apiCall('POST', '/api/app/delete-account', token: token);
+      if (r['_status'] == 200 && mounted) {
+        setState(() => deleteAt = (r['delete_at'] as num?)?.toInt() ?? 0);
+        note('Your account will be deleted in 3 days. You can cancel until then.');
+      } else {
+        note('Could not start the deletion. Try again later.');
+      }
+    } catch (_) {
+      note('No connection. Check your internet and try again.');
+    }
+  }
+
+  Future<void> cancelDelete() async {
+    try {
+      final r = await apiCall('POST', '/api/app/delete-account', token: token, data: {'cancel': true});
+      if (r['_status'] == 200 && mounted) {
+        setState(() => deleteAt = 0);
+        note('Deletion cancelled. Your account stays.');
+      } else {
+        note('Could not cancel. Try again later.');
+      }
+    } catch (_) {
+      note('No connection. Check your internet and try again.');
+    }
+  }
+
   // "Medals" button on the card screen: opens a sheet with all medals of the player
   Widget _medalsButton() {
     final preview = medals.take(4).map((m) => m.icon).join(' ');
@@ -1882,6 +1970,16 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
                 title: const Text('Check for updates'),
                 subtitle: Text('Version: $kVersion'),
                 onTap: () => checkUpdate(manual: true),
+              ),
+              const Divider(height: 1),
+              ListTile(
+                leading: const Icon(Icons.delete_forever_rounded, color: Color(0xFFC0343F)),
+                title: Text(deleteAt > 0 ? 'Cancel account deletion' : 'Delete account',
+                    style: const TextStyle(color: Color(0xFFC0343F), fontWeight: FontWeight.w600)),
+                subtitle: Text(deleteAt > 0
+                    ? 'Will be deleted on ${fmtDeleteDate(deleteAt)}'
+                    : 'Deleted after 3 days. You can cancel until then.'),
+                onTap: deleteAt > 0 ? cancelDelete : askDelete,
               ),
             ],
           ),
