@@ -12,6 +12,7 @@ import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:open_filex/open_filex.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'firebase_options.dart';
@@ -3060,6 +3061,14 @@ class NewsCard extends StatelessWidget {
   }
 }
 
+// opens the phone's share menu (Discord, Snapchat, WhatsApp, ...) with a link to this news item
+Future<void> shareNews(NewsItem n) async {
+  final url = '$apiBase/n/${n.id}';
+  try {
+    await Share.share('${n.title}\n$url', subject: n.title);
+  } catch (_) {}
+}
+
 class VoteBar extends StatelessWidget {
   const VoteBar({super.key, required this.item, required this.onVote});
 
@@ -3107,6 +3116,21 @@ class VoteBar extends StatelessWidget {
         const SizedBox(width: 10),
         btn(Icons.thumb_down_outlined, Icons.thumb_down, item.dislikes,
             item.my == -1, -1, 'Dislike'),
+        const SizedBox(width: 10),
+        Semantics(
+          label: 'Share',
+          button: true,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(999),
+            onTap: () => shareNews(item),
+            child: Container(
+              constraints: const BoxConstraints(minHeight: 44, minWidth: 44),
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              decoration: BoxDecoration(color: tintGrey, borderRadius: BorderRadius.circular(999)),
+              child: Icon(Icons.share_outlined, size: 20, color: mutedColor),
+            ),
+          ),
+        ),
         const Spacer(),
         Icon(Icons.visibility_outlined, size: 20, color: mutedColor),
         const SizedBox(width: 6),
