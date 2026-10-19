@@ -135,6 +135,76 @@ class CardStyle {
       );
 }
 
+// Pixel icons for medals (12x12, drawn in code, no emoji). Same set as on the website.
+const Map<String, int> kMedalPalette = {
+  'Y': 0xFFFFCF3A,
+  'y': 0xFFC98A00,
+  'R': 0xFFE8424F,
+  'B': 0xFF2EA2EA,
+  'O': 0xFFFF8A1F,
+  'k': 0xFF3A1D08,
+  'G': 0xFF3FAE4A,
+  'g': 0xFF2A7A33,
+  'W': 0xFFF2F6FA,
+  'w': 0xFFB9C6D3,
+  'I': 0xFFBFE9FF,
+  'C': 0xFF5EE3F0,
+  'c': 0xFFD6FBFF,
+  'T': 0xFF8A5A2B,
+  'P': 0xFF9AA7B4,
+  'D': 0xFF1F6FA8,
+};
+const Map<String, List<String>> kMedalIcons = {
+  'medal': ['..RR....BB..', '..RRR..BBB..', '...RRR.BB...', '....RRBB....', '.....yy.....', '...yYYYYy...', '..yYYyyYYy..', '..YYyYYyYY..', '..YYyYYyYY..', '..yYYyyYYy..', '...yYYYYy...', '.....yy.....'],
+  'star': ['.....YY.....', '.....YY.....', '....YYYY....', '....YYYY....', 'YYYYYYYYYYYY', '.YYYYYYYYYY.', '..YYYYYYYY..', '...YYYYYY...', '...YYYYYY...', '..YYY..YYY..', '..YY....YY..', '.YY......YY.'],
+  'trophy': ['.YYYYYYYYYY.', 'YYYYYYYYYYYY', 'Y.YYYYYYyY.Y', 'Y.YYYYYYyY.Y', '.YYYYYYYyYY.', '...YYYYyY...', '....YYyY....', '.....yY.....', '.....yY.....', '....yYYY....', '...TTTTTT...', '...TTTTTT...'],
+  'pumpkin': ['.....gg.....', '.....g......', '..OOOOOOOO..', '.OOOOOOOOOO.', 'OOkkOOOOkkOO', 'OOkkOOOOkkOO', 'OOOOOkkOOOOO', 'OOOOOOOOOOOO', 'OOkOkkkkOkOO', 'OOOkkkkkkOOO', '.OOOOOOOOOO.', '..OOOOOOOO..'],
+  'ghost': ['....WWWW....', '..WWWWWWWW..', '.WWWWWWWWWW.', '.WWkkWWkkWW.', '.WWkkWWkkWW.', '.WWWWWWWWWW.', '.WWWWkkWWWW.', '.WWWWkkWWWW.', '.WWWWWWWWWW.', '.WWWWWWWWWW.', '.WWW.WW.WWW.', '.WW...W..WW.'],
+  'tree': ['.....YY.....', '.....GG.....', '....GGGG....', '...GGRGGG...', '....GGGG....', '...GGGGBG...', '..GGRGGGGG..', '...GGGGGG...', '..GGGGGGYG..', '.GGGGRGGGGG.', '.....TT.....', '.....TT.....'],
+  'snow': ['.....I......', '...I.I.I....', '....III.....', '.I...I...I..', '..I..I..I...', 'IIIIIIIIIII.', '..I..I..I...', '.I...I...I..', '....III.....', '...I.I.I....', '.....I......', '............'],
+  'fire': ['.....R......', '....RR......', '....RRR..R..', '...RRRR.RR..', '..RRORRRRR..', '..RROORRRR..', '.RROOOORRRR.', '.RROOYOORRR.', '.RROYYYORRR.', '.RROYYYYORR.', '..RROYYORR..', '...RRRRRR...'],
+  'sword': ['..........WW', '.........WwW', '........WwW.', '.......WwW..', '......WwW...', '..Y..WwW....', '...YWwW.....', '....YW......', '...TTY......', '..TT..Y.....', '.TT.........', 'TT..........'],
+  'diamond': ['............', '............', '...CCCCCC...', '..CcCCCCcC..', '.CcCCCCCCcC.', 'CCCCCCCCCCCC', '.CCCCCCCCCC.', '..CCCCCCCC..', '...CCCCCC...', '....CCCC....', '.....CC.....', '............'],
+  'crown': ['............', '............', 'Y....Y....Y.', 'YY..YYY..YY.', 'YYY.YYY.YYY.', 'YYYYYYYYYYY.', 'YYRYYBYYRYY.', 'YYYYYYYYYYY.', 'yyyyyyyyyyy.', '............', '............', '............'],
+  'heart': ['............', '.RRR....RRR.', 'RRRRR..RRRRR', 'RRWRRRRRRRRR', 'RRRRRRRRRRRR', 'RRRRRRRRRRRR', '.RRRRRRRRRR.', '..RRRRRRRR..', '...RRRRRR...', '....RRRR....', '.....RR.....', '............'],
+  'flag': ['.P..........', '.PBBBBBB....', '.PBBBBBBB...', '.PBBWWBBBB..', '.PBBWWBBBBB.', '.PBBBBBBBB..', '.PBBBBBBB...', '.P..........', '.P..........', '.P..........', '.P..........', 'PPP.........'],
+};
+
+class PixelIcon extends StatelessWidget {
+  const PixelIcon(this.name, {super.key, this.size = 24});
+  final String name;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) => SizedBox(
+        width: size,
+        height: size,
+        child: CustomPaint(painter: _PixelPainter(kMedalIcons[name] ?? kMedalIcons['medal']!)),
+      );
+}
+
+class _PixelPainter extends CustomPainter {
+  _PixelPainter(this.rows);
+  final List<String> rows;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final c = size.width / 12;
+    final paint = Paint()..isAntiAlias = false;
+    for (var y = 0; y < rows.length; y++) {
+      for (var x = 0; x < rows[y].length; x++) {
+        final col = kMedalPalette[rows[y][x]];
+        if (col == null) continue;
+        paint.color = Color(col);
+        canvas.drawRect(Rect.fromLTWH(x * c, y * c, c + 0.5, c + 0.5), paint);
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(_PixelPainter old) => old.rows != rows;
+}
+
 // A medal on the player card ("Welcome", event medals, medals given by the admin).
 class Medal {
   Medal({required this.name, required this.description, required this.icon, required this.color, required this.awardedAt});
@@ -149,7 +219,7 @@ class Medal {
     return Medal(
       name: (j['name'] ?? '').toString(),
       description: (j['description'] ?? '').toString(),
-      icon: (j['icon'] ?? '').toString().isEmpty ? '\u2B50' : (j['icon'] ?? '').toString(),
+      icon: kMedalIcons.containsKey((j['icon'] ?? '').toString()) ? (j['icon'] ?? '').toString() : 'medal',
       color: Color(int.tryParse('FF$hex', radix: 16) ?? 0xFF0070B8),
       awardedAt: (j['awarded_at'] as num?)?.toInt() ?? 0,
     );
@@ -193,7 +263,7 @@ class MedalTile extends StatelessWidget {
                   color: medal.color.withOpacity(0.16),
                   borderRadius: BorderRadius.circular(14),
                 ),
-                child: Text(medal.icon, style: const TextStyle(fontSize: 22)),
+                child: PixelIcon(medal.icon, size: 28),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -1777,7 +1847,7 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
 
   // "Medals" button on the card screen: opens a sheet with all medals of the player
   Widget _medalsButton() {
-    final preview = medals.take(4).map((m) => m.icon).join(' ');
+    final preview = medals.take(6).toList();
     return Material(
       color: Colors.white,
       borderRadius: BorderRadius.circular(20),
@@ -1794,7 +1864,7 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
                 height: 40,
                 alignment: Alignment.center,
                 decoration: BoxDecoration(color: const Color(0xFFFFF1D6), borderRadius: BorderRadius.circular(12)),
-                child: const Icon(Icons.military_tech_rounded, color: Color(0xFFB87400)),
+                child: const PixelIcon('medal', size: 26),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -1803,9 +1873,13 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
                   children: [
                     Text(medals.isEmpty ? 'Medals' : 'Medals (${medals.length})',
                         style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15, color: inkColor)),
-                    Text(preview.isEmpty ? 'See your medals and achievements' : preview,
-                        maxLines: 1, overflow: TextOverflow.ellipsis,
-                        style: TextStyle(color: mutedColor, fontSize: preview.isEmpty ? 12 : 16)),
+                    const SizedBox(height: 3),
+                    preview.isEmpty
+                        ? const Text('See your medals and achievements', style: TextStyle(color: mutedColor, fontSize: 12))
+                        : Row(children: [
+                            for (final m in preview)
+                              Padding(padding: const EdgeInsets.only(right: 5), child: PixelIcon(m.icon, size: 18)),
+                          ]),
                   ],
                 ),
               ),
@@ -1971,16 +2045,6 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
                 subtitle: Text('Version: $kVersion'),
                 onTap: () => checkUpdate(manual: true),
               ),
-              const Divider(height: 1),
-              ListTile(
-                leading: const Icon(Icons.delete_forever_rounded, color: Color(0xFFC0343F)),
-                title: Text(deleteAt > 0 ? 'Cancel account deletion' : 'Delete account',
-                    style: const TextStyle(color: Color(0xFFC0343F), fontWeight: FontWeight.w600)),
-                subtitle: Text(deleteAt > 0
-                    ? 'Will be deleted on ${fmtDeleteDate(deleteAt)}'
-                    : 'Deleted after 3 days. You can cancel until then.'),
-                onTap: deleteAt > 0 ? cancelDelete : askDelete,
-              ),
             ],
           ),
         ),
@@ -1989,6 +2053,17 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
           child: Text(
             'MVP app',
             style: const TextStyle(color: mutedColor, fontSize: 12),
+          ),
+        ),
+        const SizedBox(height: 36),
+        Center(
+          child: TextButton(
+            onPressed: deleteAt > 0 ? cancelDelete : askDelete,
+            style: TextButton.styleFrom(foregroundColor: navMuted),
+            child: Text(
+              deleteAt > 0 ? 'Cancel account deletion' : 'Delete account',
+              style: const TextStyle(fontSize: 12, decoration: TextDecoration.underline),
+            ),
           ),
         ),
       ],
