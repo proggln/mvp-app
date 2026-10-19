@@ -25,10 +25,34 @@ const String pushTopic = 'news';
 const Color accent = Color(0xFF0070B8);
 const Color accentLight = Color(0xFF0094E6);
 const Color accentDark = Color(0xFF0A4D86);
-const Color bgColor = Color(0xFFEEF2F6);
-const Color inkColor = Color(0xFF0B1B2B);
-const Color mutedColor = Color(0xFF5B6F82);
-const Color navMuted = Color(0xFF8A9AAB);
+
+/// Dark mode switch. It is set at the top of the main screen from the chosen
+/// theme (System / Light / Dark), and every color below reads it.
+bool kDark = false;
+final ValueNotifier<ThemeMode> themeMode =
+    ValueNotifier<ThemeMode>(ThemeMode.system);
+
+Color get bgColor =>
+    kDark ? const Color(0xFF0B1118) : const Color(0xFFEEF2F6);
+Color get surfaceColor => kDark ? const Color(0xFF151F2A) : Colors.white;
+Color get inkColor =>
+    kDark ? const Color(0xFFE8EEF4) : const Color(0xFF0B1B2B);
+Color get mutedColor =>
+    kDark ? const Color(0xFF9AAEC0) : const Color(0xFF5B6F82);
+Color get navMuted =>
+    kDark ? const Color(0xFF7F91A5) : const Color(0xFF8A9AAB);
+Color get tintBlue =>
+    kDark ? const Color(0xFF16344A) : const Color(0xFFE3F2FC);
+Color get tintAmber =>
+    kDark ? const Color(0xFF3A2D12) : const Color(0xFFFFF1D6);
+Color get tintRed =>
+    kDark ? const Color(0xFF3D1B20) : const Color(0xFFFDE4E6);
+Color get tintGrey =>
+    kDark ? const Color(0xFF1F2B38) : const Color(0xFFF1F5F9);
+Color get tintPoll =>
+    kDark ? const Color(0xFF14293A) : const Color(0xFFEAF5FD);
+Color get lineColor =>
+    kDark ? const Color(0xFF2D4256) : const Color(0xFFD3E3EE);
 
 String firebaseError = '';
 
@@ -44,6 +68,13 @@ Future<void> main() async {
       firebaseError = e.toString();
     }
   }
+  try {
+    final p = await SharedPreferences.getInstance();
+    final t = p.getString('theme_mode') ?? 'system';
+    themeMode.value = t == 'dark'
+        ? ThemeMode.dark
+        : (t == 'light' ? ThemeMode.light : ThemeMode.system);
+  } catch (_) {}
   runApp(MvpApp(firebaseOk: firebaseOk));
 }
 
@@ -54,24 +85,44 @@ class MvpApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'MVP',
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        useMaterial3: true,
-        brightness: Brightness.light,
-        colorScheme: ColorScheme.fromSeed(seedColor: accent).copyWith(
-          primary: accent,
-          surface: Colors.white,
+    return ValueListenableBuilder<ThemeMode>(
+      valueListenable: themeMode,
+      builder: (context, mode, _) => MaterialApp(
+        title: 'MVP',
+        debugShowCheckedModeBanner: false,
+        themeMode: mode,
+        theme: ThemeData(
+          useMaterial3: true,
+          brightness: Brightness.light,
+          colorScheme: ColorScheme.fromSeed(seedColor: accent).copyWith(
+            primary: accent,
+            surface: Colors.white,
+          ),
+          scaffoldBackgroundColor: const Color(0xFFEEF2F6),
+          appBarTheme: const AppBarTheme(
+            backgroundColor: Color(0xFFEEF2F6),
+            foregroundColor: Color(0xFF0B1B2B),
+            elevation: 0,
+          ),
         ),
-        scaffoldBackgroundColor: bgColor,
-        appBarTheme: const AppBarTheme(
-          backgroundColor: bgColor,
-          foregroundColor: inkColor,
-          elevation: 0,
+        darkTheme: ThemeData(
+          useMaterial3: true,
+          brightness: Brightness.dark,
+          colorScheme: ColorScheme.fromSeed(
+                  seedColor: accent, brightness: Brightness.dark)
+              .copyWith(
+            primary: accentLight,
+            surface: const Color(0xFF151F2A),
+          ),
+          scaffoldBackgroundColor: const Color(0xFF0B1118),
+          appBarTheme: const AppBarTheme(
+            backgroundColor: Color(0xFF0B1118),
+            foregroundColor: Color(0xFFE8EEF4),
+            elevation: 0,
+          ),
         ),
+        home: Shell(firebaseOk: firebaseOk),
       ),
-      home: Shell(firebaseOk: firebaseOk),
     );
   }
 }
@@ -242,7 +293,7 @@ class MedalTile extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: surfaceColor,
         borderRadius: BorderRadius.circular(18),
         boxShadow: softShadow(),
       ),
@@ -275,12 +326,12 @@ class MedalTile extends StatelessWidget {
                     if (medal.description.isNotEmpty)
                       Padding(
                         padding: const EdgeInsets.only(top: 2),
-                        child: Text(medal.description, style: const TextStyle(color: inkColor, fontSize: 13)),
+                        child: Text(medal.description, style: TextStyle(color: inkColor, fontSize: 13)),
                       ),
                     if (medal.dateText.isNotEmpty)
                       Padding(
                         padding: const EdgeInsets.only(top: 2),
-                        child: Text(medal.dateText, style: const TextStyle(color: mutedColor, fontSize: 11)),
+                        child: Text(medal.dateText, style: TextStyle(color: mutedColor, fontSize: 11)),
                       ),
                   ],
                 ),
@@ -598,6 +649,7 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    themeMode.addListener(_themeChanged);
     () async {
       try {
         final f = File('${Directory.systemTemp.path}/mvp-app.apk');
@@ -642,8 +694,44 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    themeMode.removeListener(_themeChanged);
     _sub?.cancel();
     super.dispose();
+  }
+
+  void _themeChanged() {
+    if (mounted) setState(() {});
+  }
+
+  /// Settings > Theme: System follows the phone, Light and Dark are fixed.
+  Future<void> chooseTheme() async {
+    await showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: surfaceColor,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            for (final o in const [
+              ['system', 'System (follows your phone)', ThemeMode.system],
+              ['light', 'Light', ThemeMode.light],
+              ['dark', 'Dark', ThemeMode.dark],
+            ])
+              ListTile(
+                title: Text(o[1] as String, style: TextStyle(color: inkColor)),
+                trailing: themeMode.value == o[2]
+                    ? const Icon(Icons.check_circle_rounded, color: accent)
+                    : null,
+                onTap: () {
+                  themeMode.value = o[2] as ThemeMode;
+                  savePref('theme_mode', o[0] as String);
+                  Navigator.of(ctx).pop();
+                },
+              ),
+          ],
+        ),
+      ),
+    );
   }
 
   void note(String text) {
@@ -932,7 +1020,7 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
     if (!mounted) return;
     await showModalBottomSheet<void>(
       context: context,
-      backgroundColor: Colors.white,
+      backgroundColor: surfaceColor,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
@@ -1180,7 +1268,7 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
   void chooseStyle() {
     showModalBottomSheet<void>(
       context: context,
-      backgroundColor: Colors.white,
+      backgroundColor: surfaceColor,
       shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
       builder: (ctx) => SafeArea(
@@ -1190,13 +1278,13 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('Card style',
+              Text('Card style',
                   style: TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.w800,
                       color: inkColor)),
               const SizedBox(height: 4),
-              const Text('Special styles are given out at events.',
+              Text('Special styles are given out at events.',
                   style: TextStyle(color: mutedColor)),
               const SizedBox(height: 16),
               Wrap(
@@ -1233,7 +1321,7 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
                           ),
                           const SizedBox(height: 6),
                           Text(t.name,
-                              style: const TextStyle(
+                              style: TextStyle(
                                   fontSize: 12, color: inkColor)),
                         ],
                       ),
@@ -1284,6 +1372,10 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
 
   @override
   Widget build(BuildContext context) {
+    // pick the colors: the chosen theme, or the phone's own when it is System
+    kDark = themeMode.value == ThemeMode.dark ||
+        (themeMode.value == ThemeMode.system &&
+            MediaQuery.platformBrightnessOf(context) == Brightness.dark);
     final pages = <Widget>[
       _cardTab(),
       _newsTab(),
@@ -1310,8 +1402,8 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
       Icons.settings_rounded,
     ];
     return Container(
-      decoration: const BoxDecoration(
-        color: Colors.white,
+      decoration: BoxDecoration(
+        color: surfaceColor,
         borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
         boxShadow: [
           BoxShadow(
@@ -1377,7 +1469,7 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
+                    Text(
                       'Welcome back',
                       style: TextStyle(color: mutedColor, fontSize: 13),
                     ),
@@ -1385,7 +1477,7 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
                       name,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 24,
                         fontWeight: FontWeight.w800,
                         color: inkColor,
@@ -1396,7 +1488,7 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
               ),
               if (widget.firebaseOk)
                 Material(
-                  color: Colors.white,
+                  color: surfaceColor,
                   shape: const CircleBorder(),
                   elevation: 2,
                   shadowColor: const Color(0x220B1B2B),
@@ -1431,7 +1523,7 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
               Expanded(
                 child: StatTile(
                   icon: Icons.schedule_rounded,
-                  tint: const Color(0xFFE3F2FC),
+                  tint: tintBlue,
                   color: accent,
                   value: formatPlaytime(playtime),
                   label: 'Playtime',
@@ -1441,7 +1533,7 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
               Expanded(
                 child: StatTile(
                   asset: 'assets/coin.png',
-                  tint: const Color(0xFFFFF1D6),
+                  tint: tintAmber,
                   color: const Color(0xFFB87400),
                   value: '$coins',
                   label: 'Coins',
@@ -1451,7 +1543,7 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
               Expanded(
                 child: StatTile(
                   asset: 'assets/sword.png',
-                  tint: const Color(0xFFFDE4E6),
+                  tint: tintRed,
                   color: const Color(0xFFC0343F),
                   value: '$kills',
                   label: 'Kills',
@@ -1467,7 +1559,7 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: surfaceColor,
               borderRadius: BorderRadius.circular(20),
               boxShadow: softShadow(),
             ),
@@ -1483,7 +1575,7 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
                             : (pendingNick.isNotEmpty
                                 ? 'Registration pending'
                                 : 'Register your account'),
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontWeight: FontWeight.w600,
                           fontSize: 14,
                           color: inkColor,
@@ -1496,7 +1588,7 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
                             : (pendingNick.isNotEmpty
                                 ? 'Waiting for registration (wait some time). Requested: $pendingNick'
                                 : 'Pick your Minecraft nickname. An admin will confirm it.'),
-                        style: const TextStyle(color: mutedColor, fontSize: 12),
+                        style: TextStyle(color: mutedColor, fontSize: 12),
                       ),
                     ],
                   ),
@@ -1522,7 +1614,7 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
           const SizedBox(height: 18),
           Row(
             children: [
-              const Expanded(
+              Expanded(
                 child: Text(
                   'Latest news',
                   style: TextStyle(
@@ -1548,7 +1640,7 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: surfaceColor,
                 borderRadius: BorderRadius.circular(18),
                 boxShadow: softShadow(),
               ),
@@ -1556,7 +1648,7 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
                 loading
                     ? 'Loading...'
                     : (error ?? 'No news yet. Check back soon!'),
-                style: const TextStyle(color: mutedColor),
+                style: TextStyle(color: mutedColor),
               ),
             ),
         ],
@@ -1575,7 +1667,7 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.fromLTRB(22, 14, 22, 24),
         children: [
-          const Text(
+          Text(
             'News',
             style: TextStyle(
               fontSize: 26,
@@ -1596,7 +1688,7 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
               padding: const EdgeInsets.only(top: 40),
               child: Column(
                 children: [
-                  const Icon(Icons.wifi_off_rounded,
+                  Icon(Icons.wifi_off_rounded,
                       size: 42, color: mutedColor),
                   const SizedBox(height: 12),
                   Text(error!, textAlign: TextAlign.center),
@@ -1606,7 +1698,7 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
               ),
             )
           else if (list.isEmpty)
-            const Padding(
+            Padding(
               padding: EdgeInsets.only(top: 50),
               child: Center(
                 child: Text(
@@ -1629,7 +1721,7 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
     return ListView(
       padding: const EdgeInsets.fromLTRB(22, 14, 22, 24),
       children: [
-        const Text(
+        Text(
           'Server',
           style: TextStyle(
             fontSize: 26,
@@ -1707,7 +1799,7 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
       child: Material(
-        color: Colors.white,
+        color: surfaceColor,
         borderRadius: BorderRadius.circular(18),
         elevation: 1,
         shadowColor: const Color(0x220B1B2B),
@@ -1722,7 +1814,7 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
                   width: 44,
                   height: 44,
                   decoration: BoxDecoration(
-                    color: const Color(0xFFE3F2FC),
+                    color: tintBlue,
                     borderRadius: BorderRadius.circular(14),
                   ),
                   child: Icon(icon, color: accent),
@@ -1734,14 +1826,14 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
                     children: [
                       Text(
                         title,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontWeight: FontWeight.w700,
                           color: inkColor,
                         ),
                       ),
                       Text(
                         sub,
-                        style: const TextStyle(
+                        style: TextStyle(
                           color: mutedColor,
                           fontSize: 12,
                         ),
@@ -1749,7 +1841,7 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
                     ],
                   ),
                 ),
-                const Icon(Icons.chevron_right_rounded, color: navMuted),
+                Icon(Icons.chevron_right_rounded, color: navMuted),
               ],
             ),
           ),
@@ -1849,7 +1941,7 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
   Widget _medalsButton() {
     final preview = medals.take(6).toList();
     return Material(
-      color: Colors.white,
+      color: surfaceColor,
       borderRadius: BorderRadius.circular(20),
       child: InkWell(
         borderRadius: BorderRadius.circular(20),
@@ -1863,7 +1955,7 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
                 width: 40,
                 height: 40,
                 alignment: Alignment.center,
-                decoration: BoxDecoration(color: const Color(0xFFFFF1D6), borderRadius: BorderRadius.circular(12)),
+                decoration: BoxDecoration(color: tintAmber, borderRadius: BorderRadius.circular(12)),
                 child: const PixelIcon('medal', size: 26),
               ),
               const SizedBox(width: 12),
@@ -1872,10 +1964,10 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(medals.isEmpty ? 'Medals' : 'Medals (${medals.length})',
-                        style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15, color: inkColor)),
+                        style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15, color: inkColor)),
                     const SizedBox(height: 3),
                     preview.isEmpty
-                        ? const Text('See your medals and achievements', style: TextStyle(color: mutedColor, fontSize: 12))
+                        ? Text('See your medals and achievements', style: TextStyle(color: mutedColor, fontSize: 12))
                         : Row(children: [
                             for (final m in preview)
                               Padding(padding: const EdgeInsets.only(right: 5), child: PixelIcon(m.icon, size: 18)),
@@ -1883,7 +1975,7 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
                   ],
                 ),
               ),
-              const Icon(Icons.chevron_right_rounded, color: navMuted),
+              Icon(Icons.chevron_right_rounded, color: navMuted),
             ],
           ),
         ),
@@ -1912,16 +2004,16 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
             const SizedBox(height: 14),
             Row(
               children: [
-                const Text('Medals', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 22, color: inkColor)),
+                Text('Medals', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 22, color: inkColor)),
                 const SizedBox(width: 8),
-                Text('${medals.length}', style: const TextStyle(fontWeight: FontWeight.w700, color: mutedColor)),
+                Text('${medals.length}', style: TextStyle(fontWeight: FontWeight.w700, color: mutedColor)),
               ],
             ),
             const SizedBox(height: 4),
-            const Text('Join events and play to collect more.', style: TextStyle(color: mutedColor, fontSize: 13)),
+            Text('Join events and play to collect more.', style: TextStyle(color: mutedColor, fontSize: 13)),
             const SizedBox(height: 14),
             if (medals.isEmpty)
-              const Padding(
+              Padding(
                 padding: EdgeInsets.all(20),
                 child: Center(child: Text('No medals yet.', style: TextStyle(color: mutedColor))),
               ),
@@ -1934,14 +2026,14 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
 
   Widget _storeTile() {
     return Material(
-      color: Colors.white,
+      color: surfaceColor,
       borderRadius: BorderRadius.circular(20),
       elevation: 1,
       shadowColor: const Color(0x220B1B2B),
       child: InkWell(
         borderRadius: BorderRadius.circular(20),
         onTap: () => openLink(storeUrl),
-        child: const Padding(
+        child: Padding(
           padding: EdgeInsets.all(16),
           child: Row(
             children: [
@@ -1973,7 +2065,7 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
     return ListView(
       padding: const EdgeInsets.fromLTRB(22, 14, 22, 24),
       children: [
-        const Text(
+        Text(
           'Settings',
           style: TextStyle(
             fontSize: 26,
@@ -1984,7 +2076,7 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
         const SizedBox(height: 16),
         Container(
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: surfaceColor,
             borderRadius: BorderRadius.circular(20),
             boxShadow: softShadow(),
           ),
@@ -2032,6 +2124,18 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
               ),
               const Divider(height: 1),
               ListTile(
+                leading: const Icon(Icons.dark_mode_rounded, color: accent),
+                title: const Text('Theme'),
+                subtitle: Text(themeMode.value == ThemeMode.dark
+                    ? 'Dark'
+                    : (themeMode.value == ThemeMode.light
+                        ? 'Light'
+                        : 'System')),
+                trailing: const Icon(Icons.chevron_right_rounded),
+                onTap: chooseTheme,
+              ),
+              const Divider(height: 1),
+              ListTile(
                 leading: const Icon(Icons.login_rounded, color: accent),
                 title: const Text('Sign in to the website'),
                 subtitle: const Text('Enter the code shown on the site'),
@@ -2052,7 +2156,7 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
         Center(
           child: Text(
             'MVP app',
-            style: const TextStyle(color: mutedColor, fontSize: 12),
+            style: TextStyle(color: mutedColor, fontSize: 12),
           ),
         ),
         const SizedBox(height: 36),
@@ -2352,7 +2456,7 @@ class StatTile extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: surfaceColor,
         borderRadius: BorderRadius.circular(20),
         boxShadow: softShadow(),
       ),
@@ -2384,14 +2488,14 @@ class StatTile extends StatelessWidget {
             child: Text(
               value,
               maxLines: 1,
-              style: const TextStyle(
+              style: TextStyle(
                 fontWeight: FontWeight.w800,
                 fontSize: 19,
                 color: inkColor,
               ),
             ),
           ),
-          Text(label, style: const TextStyle(color: mutedColor, fontSize: 11)),
+          Text(label, style: TextStyle(color: mutedColor, fontSize: 11)),
         ],
       ),
     );
@@ -2444,7 +2548,7 @@ class _LinkSheetState extends State<LinkSheet> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             'Link your account',
             style: TextStyle(
               fontSize: 22,
@@ -2453,7 +2557,7 @@ class _LinkSheetState extends State<LinkSheet> {
             ),
           ),
           const SizedBox(height: 6),
-          const Text(
+          Text(
             'Join the server and type this command in the game chat:',
             style: TextStyle(color: mutedColor),
           ),
@@ -2462,7 +2566,7 @@ class _LinkSheetState extends State<LinkSheet> {
             width: double.infinity,
             padding: const EdgeInsets.symmetric(vertical: 18),
             decoration: BoxDecoration(
-              color: const Color(0xFFE3F2FC),
+              color: tintBlue,
               borderRadius: BorderRadius.circular(18),
             ),
             child: Center(
@@ -2504,7 +2608,7 @@ class _LinkSheetState extends State<LinkSheet> {
           ),
           const SizedBox(height: 14),
           Row(
-            children: const [
+            children: [
               SizedBox(
                 width: 16,
                 height: 16,
@@ -2545,7 +2649,7 @@ class NewsPicture extends StatelessWidget {
           loadingBuilder: (context, child, progress) {
             if (progress == null) return child;
             return Container(
-              color: const Color(0xFFE3F2FC),
+              color: tintBlue,
               child: const Center(
                 child:
                     CircularProgressIndicator(color: accent, strokeWidth: 2),
@@ -2575,7 +2679,7 @@ class NewsCard extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Material(
-        color: Colors.white,
+        color: surfaceColor,
         borderRadius: BorderRadius.circular(18),
         elevation: 1,
         shadowColor: const Color(0x220B1B2B),
@@ -2593,7 +2697,7 @@ class NewsCard extends StatelessWidget {
                 ],
                 Text(
                   item.title,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 17,
                     fontWeight: FontWeight.w800,
                     color: inkColor,
@@ -2609,7 +2713,7 @@ class NewsCard extends StatelessWidget {
                   plainBody(item.body),
                   maxLines: 3,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(color: mutedColor, height: 1.4),
+                  style: TextStyle(color: mutedColor, height: 1.4),
                 ),
                 const SizedBox(height: 8),
                 if (item.poll != null) ...[
@@ -2654,7 +2758,7 @@ class VoteBar extends StatelessWidget {
           constraints: const BoxConstraints(minHeight: 44, minWidth: 64),
           padding: const EdgeInsets.symmetric(horizontal: 12),
           decoration: BoxDecoration(
-            color: on ? const Color(0xFFE3F2FC) : const Color(0xFFF1F5F9),
+            color: on ? tintBlue : tintGrey,
             borderRadius: BorderRadius.circular(999),
           ),
           child: Row(
@@ -2684,10 +2788,10 @@ class VoteBar extends StatelessWidget {
         btn(Icons.thumb_down_outlined, Icons.thumb_down, item.dislikes,
             item.my == -1, -1, 'Dislike'),
         const Spacer(),
-        const Icon(Icons.visibility_outlined, size: 20, color: mutedColor),
+        Icon(Icons.visibility_outlined, size: 20, color: mutedColor),
         const SizedBox(width: 6),
         Text('${item.views}',
-            style: const TextStyle(
+            style: TextStyle(
                 fontWeight: FontWeight.w700, color: mutedColor)),
       ],
     );
@@ -2738,7 +2842,7 @@ class _NewsPageState extends State<NewsPage> {
           ],
           Text(
             item.title,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 24,
               fontWeight: FontWeight.w800,
               color: inkColor,
@@ -2752,7 +2856,7 @@ class _NewsPageState extends State<NewsPage> {
           const SizedBox(height: 16),
           RichBody(
             text: item.body,
-            style: const TextStyle(fontSize: 16, height: 1.5, color: inkColor),
+            style: TextStyle(fontSize: 16, height: 1.5, color: inkColor),
           ),
           for (final id in videoIds(item.body)) VideoTile(id: id),
           if (item.poll != null) PollView(poll: item.poll!, onVote: pollVote),
@@ -2978,7 +3082,7 @@ class PollView extends StatelessWidget {
       margin: const EdgeInsets.only(top: 18),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFFEAF5FD),
+        color: tintPoll,
         borderRadius: BorderRadius.circular(18),
       ),
       child: Column(
@@ -2986,7 +3090,7 @@ class PollView extends StatelessWidget {
         children: [
           Text(
             poll.question,
-            style: const TextStyle(
+            style: TextStyle(
                 fontSize: 18, fontWeight: FontWeight.w800, color: inkColor),
           ),
           const SizedBox(height: 12),
@@ -2999,10 +3103,10 @@ class PollView extends StatelessWidget {
                 child: Container(
                   height: 50,
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: surfaceColor,
                     borderRadius: BorderRadius.circular(14),
                     border: Border.all(
-                      color: poll.my == o.id ? accent : const Color(0xFFD3E3EE),
+                      color: poll.my == o.id ? accent : lineColor,
                       width: poll.my == o.id ? 2 : 1,
                     ),
                   ),
@@ -3031,14 +3135,14 @@ class PollView extends StatelessWidget {
                                 ),
                               Expanded(
                                 child: Text(o.text,
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                         fontWeight: FontWeight.w600,
                                         color: inkColor)),
                               ),
                               if (show)
                                 Text(
                                   '${total == 0 ? 0 : (o.votes * 100 / total).round()}%',
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                       fontWeight: FontWeight.w800,
                                       color: inkColor),
                                 ),
@@ -3053,7 +3157,7 @@ class PollView extends StatelessWidget {
             ),
           Text(
             '$total ${total == 1 ? 'vote' : 'votes'}${poll.closed ? '  |  Poll closed' : ''}',
-            style: const TextStyle(color: mutedColor, fontSize: 12),
+            style: TextStyle(color: mutedColor, fontSize: 12),
           ),
         ],
       ),

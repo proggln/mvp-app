@@ -70,7 +70,7 @@ jobs:
           flutter build apk --release --no-shrink --dart-define=BUILD=${{ github.run_number }} 2>&1 | tee build.log
           code=${PIPESTATUS[0]}
           if [ "$code" -ne 0 ]; then
-            grep -E "rror:|Error:|e: " build.log | head -6 | while IFS= read -r l; do echo "::error::$l"; done
+            echo "::error::$(grep -E "rror:|Error:|e: " build.log | cut -c1-170 | sort -u | head -40 | sed ':a;N;$!ba;s/\n/%0A/g')"
             grep -E "What went wrong" -A10 build.log | head -4 | while IFS= read -r l; do echo "::error::$l"; done
           fi
           exit $code
