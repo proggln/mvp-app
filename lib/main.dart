@@ -135,6 +135,93 @@ class CardStyle {
       );
 }
 
+// A medal on the player card ("Welcome", event medals, medals given by the admin).
+class Medal {
+  Medal({required this.name, required this.description, required this.icon, required this.color, required this.awardedAt});
+  final String name;
+  final String description;
+  final String icon;
+  final Color color;
+  final int awardedAt;
+
+  factory Medal.fromJson(Map<String, dynamic> j) {
+    final hex = (j['color'] ?? '').toString().replaceAll('#', '');
+    return Medal(
+      name: (j['name'] ?? '').toString(),
+      description: (j['description'] ?? '').toString(),
+      icon: (j['icon'] ?? '').toString().isEmpty ? '\u2B50' : (j['icon'] ?? '').toString(),
+      color: Color(int.tryParse('FF$hex', radix: 16) ?? 0xFF0070B8),
+      awardedAt: (j['awarded_at'] as num?)?.toInt() ?? 0,
+    );
+  }
+
+  String get dateText {
+    if (awardedAt <= 0) return '';
+    const m = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    final d = DateTime.fromMillisecondsSinceEpoch(awardedAt);
+    return '${m[d.month - 1]} ${d.day}, ${d.year}';
+  }
+}
+
+class MedalTile extends StatelessWidget {
+  const MedalTile({super.key, required this.medal});
+  final Medal medal;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: softShadow(),
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(18),
+        child: Container(
+          decoration: BoxDecoration(
+            border: Border(left: BorderSide(color: medal.color, width: 4)),
+          ),
+          padding: const EdgeInsets.fromLTRB(12, 12, 14, 12),
+          child: Row(
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: medal.color.withOpacity(0.16),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Text(medal.icon, style: const TextStyle(fontSize: 22)),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('[${medal.name}]',
+                        style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15, color: Color.lerp(medal.color, inkColor, 0.35))),
+                    if (medal.description.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 2),
+                        child: Text(medal.description, style: const TextStyle(color: inkColor, fontSize: 13)),
+                      ),
+                    if (medal.dateText.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 2),
+                        child: Text(medal.dateText, style: const TextStyle(color: mutedColor, fontSize: 11)),
+                      ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
 
 class NewsItem {
   NewsItem({
@@ -434,6 +521,7 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
       name: 'Aurora (app only)',
       colors: const [Color(0xFF5CFFB0), Color(0xFF7A5CFF), Color(0xFF0B1030)]);
   List<CardStyle> themes = <CardStyle>[];
+  List<Medal> medals = <Medal>[];
 
   @override
   void initState() {
@@ -670,6 +758,10 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
               .toList();
           themes.add(auroraStyle);
           if (localTheme == 'aurora') themeId = 'aurora';
+          medals = ((me['medals'] as List<dynamic>?) ?? <dynamic>[])
+              .whereType<Map<String, dynamic>>()
+              .map(Medal.fromJson)
+              .toList();
         });
         await savePref('cardno', cardNo);
       }
@@ -1295,6 +1387,8 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
             ],
           ),
           const SizedBox(height: 14),
+          _medalsButton(),
+          const SizedBox(height: 14),
           _storeTile(),
           const SizedBox(height: 14),
           Container(
@@ -1592,6 +1686,89 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
   }
 
   // -------------------------------------------------------- settings tab
+
+  // "Medals" button on the card screen: opens a sheet with all medals of the player
+  Widget _medalsButton() {
+    final preview = medals.take(4).map((m) => m.icon).join(' ');
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(20),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(20),
+        onTap: openMedals,
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(borderRadius: BorderRadius.circular(20), boxShadow: softShadow()),
+          child: Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(color: const Color(0xFFFFF1D6), borderRadius: BorderRadius.circular(12)),
+                child: const Icon(Icons.military_tech_rounded, color: Color(0xFFB87400)),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(medals.isEmpty ? 'Medals' : 'Medals (${medals.length})',
+                        style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15, color: inkColor)),
+                    Text(preview.isEmpty ? 'See your medals and achievements' : preview,
+                        maxLines: 1, overflow: TextOverflow.ellipsis,
+                        style: TextStyle(color: mutedColor, fontSize: preview.isEmpty ? 12 : 16)),
+                  ],
+                ),
+              ),
+              const Icon(Icons.chevron_right_rounded, color: navMuted),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void openMedals() {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: bgColor,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (ctx) => DraggableScrollableSheet(
+        expand: false,
+        initialChildSize: 0.7,
+        minChildSize: 0.4,
+        maxChildSize: 0.95,
+        builder: (ctx, sc) => ListView(
+          controller: sc,
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+          children: [
+            Center(
+              child: Container(width: 40, height: 4, decoration: BoxDecoration(color: navMuted, borderRadius: BorderRadius.circular(2))),
+            ),
+            const SizedBox(height: 14),
+            Row(
+              children: [
+                const Text('Medals', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 22, color: inkColor)),
+                const SizedBox(width: 8),
+                Text('${medals.length}', style: const TextStyle(fontWeight: FontWeight.w700, color: mutedColor)),
+              ],
+            ),
+            const SizedBox(height: 4),
+            const Text('Join events and play to collect more.', style: TextStyle(color: mutedColor, fontSize: 13)),
+            const SizedBox(height: 14),
+            if (medals.isEmpty)
+              const Padding(
+                padding: EdgeInsets.all(20),
+                child: Center(child: Text('No medals yet.', style: TextStyle(color: mutedColor))),
+              ),
+            ...medals.map((m) => MedalTile(medal: m)),
+          ],
+        ),
+      ),
+    );
+  }
 
   Widget _storeTile() {
     return Material(
