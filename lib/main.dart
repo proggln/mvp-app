@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
@@ -335,6 +336,53 @@ class _LinePainter extends CustomPainter {
 
 // ---------------------------------------------------------------- inbox
 
+// blue "verified" badge with a white tick, drawn in code
+class VerifiedBadge extends StatelessWidget {
+  const VerifiedBadge({super.key, this.size = 14});
+  final double size;
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+        label: 'Verified',
+        child: SizedBox(width: size, height: size, child: CustomPaint(painter: _VerifiedPainter())),
+      );
+}
+
+class _VerifiedPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final k = size.width / 24;
+    final shape = Path();
+    for (var i = 0; i < 24; i++) {
+      final r = (i.isEven ? 10.0 : 8.6) * k;
+      final a = math.pi * 2 * i / 24 - math.pi / 2;
+      final o = Offset(12 * k + r * math.cos(a), 12 * k + r * math.sin(a));
+      if (i == 0) {
+        shape.moveTo(o.dx, o.dy);
+      } else {
+        shape.lineTo(o.dx, o.dy);
+      }
+    }
+    shape.close();
+    canvas.drawPath(shape, Paint()..color = const Color(0xFF2EA2EA));
+    final tick = Path()
+      ..moveTo(8 * k, 12.3 * k)
+      ..lineTo(10.8 * k, 15 * k)
+      ..lineTo(16.2 * k, 9.4 * k);
+    canvas.drawPath(
+        tick,
+        Paint()
+          ..color = Colors.white
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 2.2 * k
+          ..strokeCap = StrokeCap.round
+          ..strokeJoin = StrokeJoin.round);
+  }
+
+  @override
+  bool shouldRepaint(_VerifiedPainter old) => false;
+}
+
 class InboxMessage {
   InboxMessage({required this.id, required this.title, required this.body, required this.sender, required this.createdAt, this.image, required this.read});
   final int id;
@@ -448,6 +496,10 @@ class _InboxPageState extends State<InboxPage> {
                     Row(children: [
                       Text(m.sender == 'server' ? 'GAME SERVER' : 'MVP TEAM',
                           style: const TextStyle(color: accent, fontSize: 11, fontWeight: FontWeight.w800, letterSpacing: 0.8)),
+                      if (m.sender != 'server') ...[
+                        const SizedBox(width: 4),
+                        const VerifiedBadge(size: 14),
+                      ],
                       const Spacer(),
                       Text(formatDate(m.createdAt), style: TextStyle(color: mutedColor, fontSize: 11)),
                     ]),
