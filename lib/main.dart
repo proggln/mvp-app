@@ -26,33 +26,32 @@ const Color accent = Color(0xFF0070B8);
 const Color accentLight = Color(0xFF0094E6);
 const Color accentDark = Color(0xFF0A4D86);
 
-/// Dark mode switch. It is set at the top of the main screen from the chosen
-/// theme (System / Light / Dark), and every color below reads it.
-bool kDark = false;
+/// White theme switch (Settings > Theme: Default / Light). Every color below reads it.
+bool kWhite = false;
 final ValueNotifier<ThemeMode> themeMode =
     ValueNotifier<ThemeMode>(ThemeMode.system);
 
 Color get bgColor =>
-    kDark ? const Color(0xFF0B1118) : const Color(0xFFEEF2F6);
-Color get surfaceColor => kDark ? const Color(0xFF151F2A) : Colors.white;
+    kWhite ? const Color(0xFFFFFFFF) : const Color(0xFFEEF2F6);
+Color get surfaceColor => kWhite ? const Color(0xFFF1F5F9) : Colors.white;
 Color get inkColor =>
-    kDark ? const Color(0xFFE8EEF4) : const Color(0xFF0B1B2B);
+    kWhite ? const Color(0xFF0B1B2B) : const Color(0xFF0B1B2B);
 Color get mutedColor =>
-    kDark ? const Color(0xFF9AAEC0) : const Color(0xFF5B6F82);
+    kWhite ? const Color(0xFF5B6F82) : const Color(0xFF5B6F82);
 Color get navMuted =>
-    kDark ? const Color(0xFF7F91A5) : const Color(0xFF8A9AAB);
+    kWhite ? const Color(0xFF8A9AAB) : const Color(0xFF8A9AAB);
 Color get tintBlue =>
-    kDark ? const Color(0xFF16344A) : const Color(0xFFE3F2FC);
+    kWhite ? const Color(0xFFE3F2FC) : const Color(0xFFE3F2FC);
 Color get tintAmber =>
-    kDark ? const Color(0xFF3A2D12) : const Color(0xFFFFF1D6);
+    kWhite ? const Color(0xFFFFF1D6) : const Color(0xFFFFF1D6);
 Color get tintRed =>
-    kDark ? const Color(0xFF3D1B20) : const Color(0xFFFDE4E6);
+    kWhite ? const Color(0xFFFDE4E6) : const Color(0xFFFDE4E6);
 Color get tintGrey =>
-    kDark ? const Color(0xFF1F2B38) : const Color(0xFFF1F5F9);
+    kWhite ? const Color(0xFFE8EEF4) : const Color(0xFFF1F5F9);
 Color get tintPoll =>
-    kDark ? const Color(0xFF14293A) : const Color(0xFFEAF5FD);
+    kWhite ? const Color(0xFFEAF5FD) : const Color(0xFFEAF5FD);
 Color get lineColor =>
-    kDark ? const Color(0xFF2D4256) : const Color(0xFFD3E3EE);
+    kWhite ? const Color(0xFFD3E3EE) : const Color(0xFFD3E3EE);
 
 String firebaseError = '';
 
@@ -70,10 +69,8 @@ Future<void> main() async {
   }
   try {
     final p = await SharedPreferences.getInstance();
-    final t = p.getString('theme_mode') ?? 'system';
-    themeMode.value = t == 'dark'
-        ? ThemeMode.dark
-        : (t == 'light' ? ThemeMode.light : ThemeMode.system);
+    themeMode.value =
+        p.getString('theme_mode') == 'light' ? ThemeMode.light : ThemeMode.system;
   } catch (_) {}
   runApp(MvpApp(firebaseOk: firebaseOk));
 }
@@ -90,7 +87,7 @@ class MvpApp extends StatelessWidget {
       builder: (context, mode, _) => MaterialApp(
         title: 'MVP',
         debugShowCheckedModeBanner: false,
-        themeMode: mode,
+        themeMode: ThemeMode.light,
         theme: ThemeData(
           useMaterial3: true,
           brightness: Brightness.light,
@@ -102,22 +99,6 @@ class MvpApp extends StatelessWidget {
           appBarTheme: const AppBarTheme(
             backgroundColor: Color(0xFFEEF2F6),
             foregroundColor: Color(0xFF0B1B2B),
-            elevation: 0,
-          ),
-        ),
-        darkTheme: ThemeData(
-          useMaterial3: true,
-          brightness: Brightness.dark,
-          colorScheme: ColorScheme.fromSeed(
-                  seedColor: accent, brightness: Brightness.dark)
-              .copyWith(
-            primary: accentLight,
-            surface: const Color(0xFF151F2A),
-          ),
-          scaffoldBackgroundColor: const Color(0xFF0B1118),
-          appBarTheme: const AppBarTheme(
-            backgroundColor: Color(0xFF0B1118),
-            foregroundColor: Color(0xFFE8EEF4),
             elevation: 0,
           ),
         ),
@@ -637,10 +618,6 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
   String since = '';
   String themeId = 'default';
   String localTheme = '';
-  final CardStyle auroraStyle = CardStyle(
-      id: 'aurora',
-      name: 'Aurora (app only)',
-      colors: const [Color(0xFF5CFFB0), Color(0xFF7A5CFF), Color(0xFF0B1030)]);
   List<CardStyle> themes = <CardStyle>[];
   List<Medal> medals = <Medal>[];
   int deleteAt = 0;
@@ -703,7 +680,7 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
     if (mounted) setState(() {});
   }
 
-  /// Settings > Theme: System follows the phone, Light and Dark are fixed.
+  /// Settings > Theme: Default or Light (white).
   Future<void> chooseTheme() async {
     await showModalBottomSheet<void>(
       context: context,
@@ -713,9 +690,8 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
           mainAxisSize: MainAxisSize.min,
           children: [
             for (final o in const [
-              ['system', 'System (follows your phone)', ThemeMode.system],
-              ['light', 'Light', ThemeMode.light],
-              ['dark', 'Dark', ThemeMode.dark],
+              ['system', 'Default', ThemeMode.system],
+              ['light', 'Light (white)', ThemeMode.light],
             ])
               ListTile(
                 title: Text(o[1] as String, style: TextStyle(color: inkColor)),
@@ -915,8 +891,6 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
           themes = ((me['themes'] as List<dynamic>?) ?? <dynamic>[])
               .map((e) => CardStyle.fromJson(e as Map<String, dynamic>))
               .toList();
-          themes.add(auroraStyle);
-          if (localTheme == 'aurora') themeId = 'aurora';
           deleteAt = (me['delete_at'] as num?)?.toInt() ?? 0;
           medals = ((me['medals'] as List<dynamic>?) ?? <dynamic>[])
               .whereType<Map<String, dynamic>>()
@@ -1240,14 +1214,6 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
   }
 
   Future<void> setTheme(CardStyle t) async {
-    if (t.id == 'aurora') {
-      setState(() {
-        themeId = 'aurora';
-        localTheme = 'aurora';
-      });
-      await savePref('localtheme', 'aurora');
-      return;
-    }
     if (localTheme.isNotEmpty) {
       localTheme = '';
       await savePref('localtheme', '');
@@ -1372,10 +1338,8 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
 
   @override
   Widget build(BuildContext context) {
-    // pick the colors: the chosen theme, or the phone's own when it is System
-    kDark = themeMode.value == ThemeMode.dark ||
-        (themeMode.value == ThemeMode.system &&
-            MediaQuery.platformBrightnessOf(context) == Brightness.dark);
+    // pick the colors: Default or Light (white)
+    kWhite = themeMode.value == ThemeMode.light;
     final pages = <Widget>[
       _cardTab(),
       _newsTab(),
@@ -1383,6 +1347,7 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
       _settingsTab(),
     ];
     return Scaffold(
+      backgroundColor: bgColor,
       body: SafeArea(
         bottom: false,
         child: IndexedStack(index: tab, children: pages),
@@ -1514,7 +1479,7 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
             since: since,
             rank: rank,
             colors: cardColors,
-            animated: themeId == 'aurora',
+            animated: false,
             onTap: linked ? null : openRegister,
           ),
           const SizedBox(height: 18),
@@ -2126,11 +2091,7 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
               ListTile(
                 leading: const Icon(Icons.dark_mode_rounded, color: accent),
                 title: const Text('Theme'),
-                subtitle: Text(themeMode.value == ThemeMode.dark
-                    ? 'Dark'
-                    : (themeMode.value == ThemeMode.light
-                        ? 'Light'
-                        : 'System')),
+                subtitle: Text(themeMode.value == ThemeMode.light ? 'Light (white)' : 'Default'),
                 trailing: const Icon(Icons.chevron_right_rounded),
                 onTap: chooseTheme,
               ),
