@@ -199,6 +199,7 @@ const Map<String, List<String>> kMedalIcons = {
   'diamond': ['............', '............', '...CCCCCC...', '..CcCCCCcC..', '.CcCCCCCCcC.', 'CCCCCCCCCCCC', '.CCCCCCCCCC.', '..CCCCCCCC..', '...CCCCCC...', '....CCCC....', '.....CC.....', '............'],
   'crown': ['............', '............', 'Y....Y....Y.', 'YY..YYY..YY.', 'YYY.YYY.YYY.', 'YYYYYYYYYYY.', 'YYRYYBYYRYY.', 'YYYYYYYYYYY.', 'yyyyyyyyyyy.', '............', '............', '............'],
   'heart': ['............', '.RRR....RRR.', 'RRRRR..RRRRR', 'RRWRRRRRRRRR', 'RRRRRRRRRRRR', 'RRRRRRRRRRRR', '.RRRRRRRRRR.', '..RRRRRRRR..', '...RRRRRR...', '....RRRR....', '.....RR.....', '............'],
+  'mail': ['............', '............', 'DDDDDDDDDDDD', 'DDIIIIIIIIDD', 'DIDIIIIIIDID', 'DIIDIIIIDIID', 'DIIIDDDDIIID', 'DIIIIIIIIIID', 'DIIIIIIIIIID', 'DDDDDDDDDDDD', '............', '............'],
   'flag': ['.P..........', '.PBBBBBB....', '.PBBBBBBB...', '.PBBWWBBBB..', '.PBBWWBBBBB.', '.PBBBBBBBB..', '.PBBBBBBB...', '.P..........', '.P..........', '.P..........', '.P..........', 'PPP.........'],
 };
 
@@ -235,6 +236,151 @@ class _PixelPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_PixelPainter old) => old.rows != rows;
+}
+
+// ---------------------------------------------------------------- inbox
+
+class InboxMessage {
+  InboxMessage({required this.id, required this.title, required this.body, required this.sender, required this.createdAt, this.image, required this.read});
+  final int id;
+  final String title;
+  final String body;
+  final String sender;
+  final DateTime createdAt;
+  final String? image;
+  final bool read;
+
+  factory InboxMessage.fromJson(Map<String, dynamic> j) => InboxMessage(
+        id: (j['id'] as num?)?.toInt() ?? 0,
+        title: (j['title'] ?? '').toString(),
+        body: (j['body'] ?? '').toString(),
+        sender: (j['sender'] ?? 'admin').toString(),
+        createdAt: DateTime.fromMillisecondsSinceEpoch((j['created_at'] as num?)?.toInt() ?? 0),
+        image: j['image'] as String?,
+        read: j['read'] == true,
+      );
+}
+
+class InboxPage extends StatefulWidget {
+  const InboxPage({super.key, required this.token});
+  final String token;
+
+  @override
+  State<InboxPage> createState() => _InboxPageState();
+}
+
+class _InboxPageState extends State<InboxPage> {
+  List<InboxMessage> items = <InboxMessage>[];
+  bool loading = true;
+  String? error;
+
+  @override
+  void initState() {
+    super.initState();
+    load();
+  }
+
+  Future<void> load() async {
+    try {
+      final r = await apiCall('GET', '/api/app/inbox', token: widget.token);
+      if (r['_status'] != 200) throw Exception('status');
+      final list = ((r['items'] as List<dynamic>?) ?? <dynamic>[])
+          .whereType<Map<String, dynamic>>()
+          .map(InboxMessage.fromJson)
+          .toList();
+      if (!mounted) return;
+      setState(() {
+        items = list;
+        loading = false;
+        error = null;
+      });
+      if (((r['unread'] as num?)?.toInt() ?? 0) > 0) {
+        apiCall('POST', '/api/app/inbox/read', token: widget.token, data: {'all': true}).catchError((_) => <String, dynamic>{});
+      }
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        loading = false;
+        error = 'Could not load your messages. Check your internet and try again.';
+      });
+    }
+  }
+
+  void hide(InboxMessage m) {
+    setState(() => items.remove(m));
+    apiCall('POST', '/api/app/inbox/read', token: widget.token, data: {'id': m.id, 'hide': true}).catchError((_) => <String, dynamic>{});
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: bgColor,
+      appBar: AppBar(title: const Text('Inbox')),
+      body: RefreshIndicator(
+        color: accent,
+        onRefresh: load,
+        child: ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.fromLTRB(18, 12, 18, 24),
+          children: [
+            if (loading)
+              const Padding(padding: EdgeInsets.all(40), child: Center(child: CircularProgressIndicator(color: accent)))
+            else if (error != null)
+              Padding(padding: const EdgeInsets.all(30), child: Text(error!, textAlign: TextAlign.center, style: TextStyle(color: mutedColor)))
+            else if (items.isEmpty)
+              Padding(
+                padding: const EdgeInsets.all(40),
+                child: Column(children: [
+                  const PixelIcon('mail', size: 56),
+                  const SizedBox(height: 12),
+                  Text('No messages yet. Messages from the server and the team will appear here.',
+                      textAlign: TextAlign.center, style: TextStyle(color: mutedColor)),
+                ]),
+              ),
+            for (final m in items)
+              Container(
+                margin: const EdgeInsets.only(bottom: 12),
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: surfaceColor,
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: softShadow(),
+                  border: m.read ? null : Border.all(color: accentLight, width: 1.5),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(children: [
+                      Text(m.sender == 'server' ? 'GAME SERVER' : 'MVP TEAM',
+                          style: const TextStyle(color: accent, fontSize: 11, fontWeight: FontWeight.w800, letterSpacing: 0.8)),
+                      const Spacer(),
+                      Text(formatDate(m.createdAt), style: TextStyle(color: mutedColor, fontSize: 11)),
+                    ]),
+                    const SizedBox(height: 6),
+                    Text(m.title, style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: inkColor)),
+                    if (m.image != null) ...[
+                      const SizedBox(height: 10),
+                      NewsPicture(url: m.image!, height: null),
+                    ],
+                    const SizedBox(height: 8),
+                    RichBody(text: m.body, style: TextStyle(fontSize: 15, height: 1.45, color: inkColor)),
+                    for (final id in videoIds(m.body)) VideoTile(id: id),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: TextButton(
+                        onPressed: () => hide(m),
+                        style: TextButton.styleFrom(foregroundColor: navMuted),
+                        child: const Text('Delete', style: TextStyle(fontSize: 12, decoration: TextDecoration.underline)),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 // A medal on the player card ("Welcome", event medals, medals given by the admin).
@@ -621,6 +767,8 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
   List<CardStyle> themes = <CardStyle>[];
   List<Medal> medals = <Medal>[];
   int deleteAt = 0;
+  int inboxUnread = 0;
+  bool _pushLinked = false;
 
   @override
   void initState() {
@@ -892,16 +1040,41 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
               .map((e) => CardStyle.fromJson(e as Map<String, dynamic>))
               .toList();
           deleteAt = (me['delete_at'] as num?)?.toInt() ?? 0;
+          inboxUnread = (me['inbox_unread'] as num?)?.toInt() ?? 0;
           medals = ((me['medals'] as List<dynamic>?) ?? <dynamic>[])
               .whereType<Map<String, dynamic>>()
               .map(Medal.fromJson)
               .toList();
         });
         await savePref('cardno', cardNo);
+        linkPushToken();
       }
     } catch (_) {
       // offline: keep what we have
     }
+  }
+
+  // tells the server which card this phone belongs to, so personal inbox messages can send a notification here
+  Future<void> linkPushToken({String? fresh}) async {
+    if (!widget.firebaseOk || token.isEmpty || (_pushLinked && fresh == null)) return;
+    try {
+      final t = fresh ?? await FirebaseMessaging.instance.getToken();
+      if (t == null || t.isEmpty) return;
+      final r = await apiCall('POST', '/api/app/push-token', token: token, data: {'token': t, 'kind': 'app'});
+      if (r['_status'] == 200) _pushLinked = true;
+    } catch (_) {}
+  }
+
+  Future<void> openInbox() async {
+    if (token.isEmpty) {
+      note('No connection. Check your internet and try again.');
+      return;
+    }
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(builder: (_) => InboxPage(token: token)),
+    );
+    if (mounted) setState(() => inboxUnread = 0);
+    refreshProfile();
   }
 
   Future<void> openRegister() async {
@@ -1062,9 +1235,23 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
       }
       _sub = FirebaseMessaging.onMessage.listen((RemoteMessage m) {
         if (!mounted) return;
+        if (m.data['type'] == 'inbox') {
+          note('New message: ${m.notification?.title ?? 'Inbox'}');
+          refreshProfile();
+          return;
+        }
         note(m.notification?.title ?? 'New news');
         load();
       });
+      FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage m) {
+        if (mounted && m.data['type'] == 'inbox') openInbox();
+      });
+      FirebaseMessaging.instance.onTokenRefresh.listen((t) => linkPushToken(fresh: t));
+      final first = await FirebaseMessaging.instance.getInitialMessage();
+      if (first != null && first.data['type'] == 'inbox') {
+        WidgetsBinding.instance.addPostFrameCallback((_) => openInbox());
+      }
+      linkPushToken();
     } catch (e) {
       if (mounted) setState(() => pushStatus = 'Error: $e');
       note('Push error: $e');
@@ -1451,25 +1638,50 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
                   ],
                 ),
               ),
-              if (widget.firebaseOk)
-                Material(
-                  color: surfaceColor,
-                  shape: const CircleBorder(),
-                  elevation: 2,
-                  shadowColor: const Color(0x220B1B2B),
-                  child: IconButton(
-                    tooltip: pushOn
-                        ? 'Turn notifications off'
-                        : 'Turn notifications on',
-                    onPressed: () => setPush(!pushOn),
-                    icon: Icon(
-                      pushOn
-                          ? Icons.notifications_active_rounded
-                          : Icons.notifications_off_rounded,
-                      color: pushOn ? accent : navMuted,
+              Material(
+                color: surfaceColor,
+                shape: const CircleBorder(),
+                elevation: 2,
+                shadowColor: const Color(0x220B1B2B),
+                child: InkWell(
+                  customBorder: const CircleBorder(),
+                  onTap: openInbox,
+                  child: Tooltip(
+                    message: 'Inbox',
+                    child: SizedBox(
+                      width: 48,
+                      height: 48,
+                      child: Stack(
+                        clipBehavior: Clip.none,
+                        alignment: Alignment.center,
+                        children: [
+                          const PixelIcon('mail', size: 26),
+                          if (inboxUnread > 0)
+                            Positioned(
+                              top: -2,
+                              right: -2,
+                              child: Container(
+                                constraints: const BoxConstraints(minWidth: 20),
+                                height: 20,
+                                padding: const EdgeInsets.symmetric(horizontal: 5),
+                                alignment: Alignment.center,
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFE8424F),
+                                  borderRadius: BorderRadius.circular(10),
+                                  border: Border.all(color: surfaceColor, width: 2),
+                                ),
+                                child: Text(
+                                  inboxUnread > 99 ? '99+' : '$inboxUnread',
+                                  style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w800),
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
                     ),
                   ),
                 ),
+              ),
             ],
           ),
           const SizedBox(height: 18),
