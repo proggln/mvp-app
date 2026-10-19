@@ -733,6 +733,8 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
       if (r['_status'] == 200) {
         setState(() => pendingNick = (r['pending_nick'] ?? choice).toString());
         note('Sent. Waiting for registration (wait some time).');
+      } else if (r['_status'] == 409) {
+        note('This nickname is already taken.');
       } else {
         note('Could not send the request. Try again later.');
       }
