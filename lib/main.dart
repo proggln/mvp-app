@@ -698,7 +698,7 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
           mainAxisSize: MainAxisSize.min,
           children: [
             const Text(
-                'Type your exact Minecraft nickname. An admin will confirm it, this can take some time.'),
+                'Type your exact Minecraft nickname. An admin will confirm it, this can take some time. Accounts that are not confirmed within 48 hours are deleted.'),
             const SizedBox(height: 12),
             TextField(
               controller: c,
