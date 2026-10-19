@@ -424,6 +424,11 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
   String storageNote = '';
   String since = '';
   String themeId = 'default';
+  String localTheme = '';
+  final CardStyle auroraStyle = CardStyle(
+      id: 'aurora',
+      name: 'Aurora (app only)',
+      colors: const [Color(0xFF5CFFB0), Color(0xFF7A5CFF), Color(0xFF0B1030)]);
   List<CardStyle> themes = <CardStyle>[];
 
   @override
@@ -598,6 +603,7 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
     }
 
     token = pick('token');
+    localTheme = prefs?.getString('localtheme') ?? '';
     final cachedCard = pick('cardno');
     var s = pick('since');
     if (s.isEmpty) {
@@ -651,6 +657,8 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
           themes = ((me['themes'] as List<dynamic>?) ?? <dynamic>[])
               .map((e) => CardStyle.fromJson(e as Map<String, dynamic>))
               .toList();
+          themes.add(auroraStyle);
+          if (localTheme == 'aurora') themeId = 'aurora';
         });
         await savePref('cardno', cardNo);
       }
@@ -853,6 +861,18 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
   }
 
   Future<void> setTheme(CardStyle t) async {
+    if (t.id == 'aurora') {
+      setState(() {
+        themeId = 'aurora';
+        localTheme = 'aurora';
+      });
+      await savePref('localtheme', 'aurora');
+      return;
+    }
+    if (localTheme.isNotEmpty) {
+      localTheme = '';
+      await savePref('localtheme', '');
+    }
     final old = themeId;
     setState(() => themeId = t.id);
     try {
