@@ -435,6 +435,12 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    () async {
+      try {
+        final f = File('${Directory.systemTemp.path}/mvp-app.apk');
+        if (await f.exists()) await f.delete();
+      } catch (_) {}
+    }();
     loadProfile();
     load();
     WidgetsBinding.instance.addPostFrameCallback((_) => checkUpdate());
