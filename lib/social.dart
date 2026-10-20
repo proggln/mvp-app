@@ -727,7 +727,7 @@ class _ChatPageState extends State<ChatPage> {
                         alignment: mine ? Alignment.centerRight : Alignment.centerLeft,
                         child: Container(
                           margin: const EdgeInsets.symmetric(vertical: 3),
-                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
                           constraints: BoxConstraints(
                               maxWidth: MediaQuery.of(context).size.width * 0.78),
                           decoration: BoxDecoration(
@@ -741,7 +741,9 @@ class _ChatPageState extends State<ChatPage> {
                           ),
                           child: Text((m['body'] ?? '').toString(),
                               style: TextStyle(
-                                  color: mine ? Colors.white : inkColor, height: 1.35)),
+                                  color: mine ? Colors.white : inkColor,
+                                  fontSize: 17,
+                                  height: 1.35)),
                         ),
                       );
                     },
@@ -776,7 +778,7 @@ class _ChatPageState extends State<ChatPage> {
                         maxLength: 300,
                         textInputAction: TextInputAction.send,
                         onSubmitted: (_) => send(),
-                        style: TextStyle(color: inkColor),
+                        style: TextStyle(color: inkColor, fontSize: 17),
                         decoration: InputDecoration(
                           hintText: 'Message ${widget.nick}',
                           border: InputBorder.none,
