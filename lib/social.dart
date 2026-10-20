@@ -832,7 +832,7 @@ class _FriendsPageState extends State<FriendsPage> {
   void initState() {
     super.initState();
     load();
-    timer = Timer.periodic(const Duration(seconds: 20), (_) => load(quiet: true));
+    timer = Timer.periodic(const Duration(seconds: 6), (_) => load(quiet: true));
   }
 
   @override

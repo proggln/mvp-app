@@ -1141,6 +1141,29 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
   bool pushOn = true;
   String pushStatus = 'Checking...';
   StreamSubscription<RemoteMessage>? _sub;
+  Timer? _pulseTimer;
+  Map<String, dynamic> _lastPulse = {};
+  bool _pulseBusy = false;
+  bool _appVisible = true;
+
+  /// Every few seconds asks the server what changed (inbox, friends, requests, stats, news) and reloads only that.
+  Future<void> _pulse() async {
+    if (_pulseBusy || !_appVisible || token.isEmpty || !mounted) return;
+    _pulseBusy = true;
+    try {
+      final r = await apiCall('GET', '/api/app/pulse', token: token);
+      if (r['_status'] == 200 && mounted) {
+        final old = _lastPulse;
+        _lastPulse = r;
+        if (old.isNotEmpty) {
+          const mine = ['inbox', 'friends', 'requests', 'msgs', 'profile', 'me'];
+          if (mine.any((k) => '${old[k]}' != '${r[k]}')) refreshProfile();
+          if ('${old['news']}' != '${r['news']}') loadQuiet();
+        }
+      }
+    } catch (_) {}
+    _pulseBusy = false;
+  }
 
   String token = '';
   String cardNo = '';
@@ -1173,6 +1196,7 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _pulseTimer = Timer.periodic(const Duration(seconds: 8), (_) => _pulse());
     themeMode.addListener(_themeChanged);
     () async {
       try {
@@ -1193,7 +1217,9 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
+    _appVisible = state == AppLifecycleState.resumed;
     if (state == AppLifecycleState.resumed) {
+      _pulse();
       loadQuiet();
       refreshProfile();
     }
@@ -1220,6 +1246,7 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
     WidgetsBinding.instance.removeObserver(this);
     themeMode.removeListener(_themeChanged);
     _sub?.cancel();
+    _pulseTimer?.cancel();
     super.dispose();
   }
 
