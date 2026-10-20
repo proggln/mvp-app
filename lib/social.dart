@@ -1503,6 +1503,10 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
                       const SizedBox(height: 12),
                       Row(
                         children: [
+                          if (p['coins'] != null) ...[
+                            _stat(Icons.monetization_on_rounded, '${(p['coins'] as num?)?.toInt() ?? 0}', 'Coins'),
+                            const SizedBox(width: 10),
+                          ],
                           _stat(Icons.bolt_rounded, '${(p['kills'] as num?)?.toInt() ?? 0}', 'Kills',
                               sub: ((p['kills_rank'] as num?)?.toInt() ?? 0) > 0
                                   ? 'TOP #${p['kills_rank']}'
