@@ -1155,6 +1155,8 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
   String rank = 'Member';
   int coins = 0;
   int kills = 0;
+  int deaths = 0;
+  int killsRank = 0;
   int playtime = 0;
   bool linked = false;
   String pendingNick = '';
@@ -1375,6 +1377,8 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
       rank = 'Member';
       coins = 0;
       kills = 0;
+      deaths = 0;
+      killsRank = 0;
       playtime = 0;
       linked = false;
       pendingNick = '';
@@ -1561,6 +1565,8 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
           rank = (me['rank'] ?? 'Member').toString();
           coins = (me['coins'] as num?)?.toInt() ?? 0;
           kills = (me['kills'] as num?)?.toInt() ?? 0;
+          deaths = (me['deaths'] as num?)?.toInt() ?? 0;
+          killsRank = (me['kills_rank'] as num?)?.toInt() ?? 0;
           playtime = (me['playtime'] as num?)?.toInt() ?? 0;
           linked = me['linked'] == true;
           pendingNick = (me['pending_nick'] ?? '').toString();
@@ -2234,17 +2240,8 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
           ),
           const SizedBox(height: 18),
           Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Expanded(
-                child: StatTile(
-                  icon: Icons.schedule_rounded,
-                  tint: tintBlue,
-                  color: accent,
-                  value: formatPlaytime(playtime),
-                  label: 'Playtime',
-                ),
-              ),
-              const SizedBox(width: 10),
               Expanded(
                 child: StatTile(
                   asset: 'assets/coin.png',
@@ -2262,6 +2259,17 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
                   color: const Color(0xFFC0343F),
                   value: '$kills',
                   label: 'Kills',
+                  sub: killsRank > 0 ? 'TOP #$killsRank' : null,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: StatTile(
+                  icon: Icons.heart_broken_rounded,
+                  tint: tintBlue,
+                  color: accent,
+                  value: '$deaths',
+                  label: 'Deaths',
                 ),
               ),
             ],
@@ -3179,8 +3187,10 @@ class StatTile extends StatelessWidget {
     required this.color,
     required this.value,
     required this.label,
+    this.sub,
   });
 
+  final String? sub;
   final IconData? icon;
   final String? asset;
   final Color tint;
@@ -3233,6 +3243,10 @@ class StatTile extends StatelessWidget {
             ),
           ),
           Text(label, style: TextStyle(color: mutedColor, fontSize: 11)),
+          if (sub != null)
+            Text(sub!,
+                style: const TextStyle(
+                    color: accent, fontSize: 11, fontWeight: FontWeight.w800)),
         ],
       ),
     );
