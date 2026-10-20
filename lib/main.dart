@@ -1157,6 +1157,7 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
   int kills = 0;
   int deaths = 0;
   int killsRank = 0;
+  int coinsRank = 0;
   int playtime = 0;
   bool linked = false;
   String pendingNick = '';
@@ -1379,6 +1380,7 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
       kills = 0;
       deaths = 0;
       killsRank = 0;
+      coinsRank = 0;
       playtime = 0;
       linked = false;
       pendingNick = '';
@@ -1567,6 +1569,7 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
           kills = (me['kills'] as num?)?.toInt() ?? 0;
           deaths = (me['deaths'] as num?)?.toInt() ?? 0;
           killsRank = (me['kills_rank'] as num?)?.toInt() ?? 0;
+          coinsRank = (me['coins_rank'] as num?)?.toInt() ?? 0;
           playtime = (me['playtime'] as num?)?.toInt() ?? 0;
           linked = me['linked'] == true;
           pendingNick = (me['pending_nick'] ?? '').toString();
@@ -2250,6 +2253,7 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
                   color: const Color(0xFFB87400),
                   value: '$coins',
                   label: 'Coins',
+                  sub: coinsRank > 0 ? 'TOP #$coinsRank' : null,
                 ),
               ),
               const SizedBox(width: 10),
