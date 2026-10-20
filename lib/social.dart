@@ -142,6 +142,7 @@ class _SxCommentsState extends State<SxComments> {
   bool loading = true;
   bool failed = false;
   bool canComment = false;
+  bool canLike = false;
   bool isAdmin = false;
   String why = '';
   bool showAll = false;
@@ -183,6 +184,7 @@ class _SxCommentsState extends State<SxComments> {
       setState(() {
         items = _list(r['items']);
         canComment = r['can_comment'] == true;
+        canLike = r['can_like'] == null ? r['can_comment'] == true : r['can_like'] == true;
         isAdmin = r['admin'] == true;
         why = (r['why'] ?? '').toString();
         loading = false;
@@ -240,7 +242,7 @@ class _SxCommentsState extends State<SxComments> {
   }
 
   Future<void> like(Map<String, dynamic> c) async {
-    if (!canComment) {
+    if (!canLike) {
       _toast(context, why == 'signin'
           ? 'Log in to like comments.'
           : 'Link your Minecraft account and add an e-mail to like comments.');
@@ -282,7 +284,7 @@ class _SxCommentsState extends State<SxComments> {
       _toast(context, 'You can not report your own comment.');
       return;
     }
-    if (!canComment) {
+    if (!canLike) {
       _toast(context, 'Log in with a linked account to report comments.');
       return;
     }
