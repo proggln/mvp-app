@@ -98,3 +98,13 @@ jobs:
           fi
           gh release delete latest --repo proggln/mvp-releases --cleanup-tag --yes >/dev/null 2>&1 || true
           out=$(gh release create latest mvp-app.apk --repo proggln/mvp-releases --title "MVP app build ${{ github.run_number }}" --notes "Latest Android build of the MVP app." 2>&1) || fail "Release step" "$out"
+
+      # for now the old public place also gets the build, so phones on build 71 and older can still update from inside the app.
+      # Remove this step when you make the code repository private.
+      - name: Publish the APK in the old place (temporary)
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete latest --cleanup-tag --yes || true
+          gh release create latest mvp-app.apk --title "MVP app build ${{ github.run_number }}" --notes "Latest Android build of the MVP app."
