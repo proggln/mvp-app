@@ -87,8 +87,9 @@ jobs:
 
       - name: Publish the APK for download
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ secrets.RELEASE_TOKEN }}
         run: |
           cp build_app/build/app/outputs/flutter-apk/app-release.apk mvp-app.apk
-          gh release delete latest --cleanup-tag --yes || true
-          gh release create latest mvp-app.apk --title "MVP app build ${{ github.run_number }}" --notes "Latest Android build of the MVP app."
+          # the code repository is private: downloads live in the small public repo mvp-releases
+          gh release delete latest --repo proggln/mvp-releases --cleanup-tag --yes || true
+          gh release create latest mvp-app.apk --repo proggln/mvp-releases --title "MVP app build ${{ github.run_number }}" --notes "Latest Android build of the MVP app."

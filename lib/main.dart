@@ -820,12 +820,12 @@ const int kBuild = int.fromEnvironment('BUILD', defaultValue: 0);
 /// Shown version: build 35 -> v35.0
 String get kVersion => kBuild == 0 ? 'dev' : 'v$kBuild.0';
 const String apkUrl =
-    'https://github.com/proggln/mvp-app/releases/latest/download/mvp-app.apk';
+    'https://github.com/proggln/mvp-releases/releases/latest/download/mvp-app.apk';
 
 /// Newest published build number (0 when unknown).
 Future<int> latestBuild() async {
   final res = await http.get(
-    Uri.parse('https://api.github.com/repos/proggln/mvp-app/releases/latest'),
+    Uri.parse('https://api.github.com/repos/proggln/mvp-releases/releases/latest'),
     headers: {'Accept': 'application/vnd.github+json'},
   ).timeout(const Duration(seconds: 15));
   if (res.statusCode != 200) return 0;
