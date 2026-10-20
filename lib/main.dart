@@ -876,6 +876,187 @@ List<BoxShadow> softShadow() => const [
       ),
     ];
 
+// ---------------------------------------------------------------- e-mail sign in / add e-mail
+
+class EmailFlow extends StatefulWidget {
+  const EmailFlow({super.key, required this.addMode, this.token = '', required this.onDone});
+
+  /// false: sign in (or create an account) with an e-mail. true: add an e-mail to the signed-in card.
+  final bool addMode;
+  final String token;
+  final void Function(String token) onDone;
+
+  @override
+  State<EmailFlow> createState() => _EmailFlowState();
+}
+
+class _EmailFlowState extends State<EmailFlow> {
+  final emailC = TextEditingController();
+  final codeC = TextEditingController();
+  bool codeStep = false;
+  bool busy = false;
+  bool news = false;
+  String msg = '';
+  String email = '';
+
+  @override
+  void dispose() {
+    emailC.dispose();
+    codeC.dispose();
+    super.dispose();
+  }
+
+  Future<void> send() async {
+    final em = emailC.text.trim().toLowerCase();
+    if (!RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]{2,}$').hasMatch(em)) {
+      setState(() => msg = 'Type a valid e-mail.');
+      return;
+    }
+    setState(() {
+      busy = true;
+      msg = '';
+    });
+    try {
+      final r = await apiCall('POST', widget.addMode ? '/api/app/email-change-start' : '/api/web/email-start',
+          token: widget.addMode ? widget.token : null, data: {'email': em});
+      final st = r['_status'];
+      if (!mounted) return;
+      if (st == 200) {
+        setState(() {
+          email = em;
+          codeStep = true;
+          busy = false;
+        });
+        return;
+      }
+      setState(() {
+        busy = false;
+        msg = st == 429
+            ? 'Too many tries. Wait a little.'
+            : st == 409
+                ? (r['error'] == 'email_taken' ? 'This e-mail is already used by another account.' : 'This is already your e-mail.')
+                : st == 503
+                    ? 'E-mail sign in is not ready yet.'
+                    : 'Could not send the code. Try again later.';
+      });
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          busy = false;
+          msg = 'No connection. Check your internet and try again.';
+        });
+      }
+    }
+  }
+
+  Future<void> verify() async {
+    final code = codeC.text.trim();
+    if (!RegExp(r'^\d{6}$').hasMatch(code)) {
+      setState(() => msg = 'The code has 6 digits.');
+      return;
+    }
+    setState(() {
+      busy = true;
+      msg = '';
+    });
+    try {
+      final r = await apiCall('POST', widget.addMode ? '/api/app/email-change-verify' : '/api/web/email-verify',
+          token: widget.addMode ? widget.token : null,
+          data: widget.addMode ? {'email': email, 'code': code} : {'email': email, 'code': code, 'newsletter': news});
+      final st = r['_status'];
+      if (!mounted) return;
+      if (st == 200) {
+        widget.onDone(widget.addMode ? '' : (r['token'] ?? '').toString());
+        return;
+      }
+      setState(() {
+        busy = false;
+        msg = r['error'] == 'email_taken' ? 'This e-mail is already used by another account.' : 'Wrong or expired code.';
+      });
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          busy = false;
+          msg = 'No connection. Check your internet and try again.';
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (!codeStep) ...[
+          Text(
+            widget.addMode
+                ? 'Type your e-mail. We send you a 6-digit code.'
+                : 'Type your e-mail. We send you a 6-digit code. No password needed. New here? An account is created for you.',
+            style: TextStyle(color: mutedColor, height: 1.4),
+          ),
+          const SizedBox(height: 14),
+          TextField(
+            controller: emailC,
+            keyboardType: TextInputType.emailAddress,
+            autocorrect: false,
+            enabled: !busy,
+            style: TextStyle(color: inkColor),
+            decoration: const InputDecoration(labelText: 'E-mail', border: OutlineInputBorder()),
+          ),
+          if (!widget.addMode)
+            CheckboxListTile(
+              value: news,
+              contentPadding: EdgeInsets.zero,
+              controlAffinity: ListTileControlAffinity.leading,
+              onChanged: busy ? null : (v) => setState(() => news = v ?? false),
+              title: Text('Send me MVP news by e-mail (optional, you can unsubscribe any time)',
+                  style: TextStyle(color: inkColor, fontSize: 13)),
+            ),
+          const SizedBox(height: 12),
+          FilledButton(
+            onPressed: busy ? null : send,
+            style: FilledButton.styleFrom(backgroundColor: accent, minimumSize: const Size.fromHeight(48)),
+            child: Text(busy ? 'Sending...' : 'Send code'),
+          ),
+        ] else ...[
+          Text('We sent a code to $email.', style: TextStyle(color: mutedColor, height: 1.4)),
+          const SizedBox(height: 14),
+          TextField(
+            controller: codeC,
+            keyboardType: TextInputType.number,
+            maxLength: 6,
+            enabled: !busy,
+            style: TextStyle(color: inkColor, letterSpacing: 6, fontSize: 20),
+            decoration: const InputDecoration(labelText: '6-digit code', border: OutlineInputBorder(), counterText: ''),
+          ),
+          const SizedBox(height: 12),
+          FilledButton(
+            onPressed: busy ? null : verify,
+            style: FilledButton.styleFrom(backgroundColor: accent, minimumSize: const Size.fromHeight(48)),
+            child: Text(busy ? 'Checking...' : 'Confirm'),
+          ),
+          TextButton(
+            onPressed: busy
+                ? null
+                : () => setState(() {
+                      codeStep = false;
+                      msg = '';
+                      codeC.clear();
+                    }),
+            child: const Text('Use another e-mail'),
+          ),
+        ],
+        if (msg.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.only(top: 8),
+            child: Text(msg, style: const TextStyle(color: Color(0xFFC0343F))),
+          ),
+      ],
+    );
+  }
+}
+
 // ---------------------------------------------------------------- shell
 
 class Shell extends StatefulWidget {
@@ -916,6 +1097,8 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
   List<Medal> medals = <Medal>[];
   int deleteAt = 0;
   int inboxUnread = 0;
+  String email = '';
+  bool needLogin = false;
   bool _pushLinked = false;
 
   @override
@@ -1004,6 +1187,118 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
         ),
       ),
     );
+  }
+
+  Widget _loginScreen() {
+    return Scaffold(
+      backgroundColor: bgColor,
+      body: SafeArea(
+        child: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(24),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 420),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text('MVP', style: TextStyle(fontSize: 34, fontWeight: FontWeight.w900, letterSpacing: 4, color: accent)),
+                  const SizedBox(height: 6),
+                  Text('Sign in with e-mail',
+                      style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800, color: inkColor)),
+                  const SizedBox(height: 16),
+                  EmailFlow(
+                    addMode: false,
+                    onDone: (t) async {
+                      if (t.isEmpty) return;
+                      token = t;
+                      await savePref('token', t);
+                      if (!mounted) return;
+                      setState(() => needLogin = false);
+                      await refreshProfile();
+                      load();
+                    },
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> addEmail() async {
+    if (token.isEmpty) return;
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (ctx) => Scaffold(
+          backgroundColor: bgColor,
+          appBar: AppBar(title: const Text('Add e-mail')),
+          body: SafeArea(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(24),
+              child: EmailFlow(
+                addMode: true,
+                token: token,
+                onDone: (_) {
+                  Navigator.of(ctx).pop();
+                },
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await refreshProfile();
+  }
+
+  Future<void> signOut() async {
+    final noMail = email.isEmpty;
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Sign out?'),
+        content: Text(noMail
+            ? 'This card has no e-mail. If you sign out, you can NOT get this card back. Add an e-mail first (Settings > E-mail), then sign out.'
+            : 'You can sign in again any time with your e-mail ($email).'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Stay signed in')),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: FilledButton.styleFrom(backgroundColor: noMail ? const Color(0xFFC0343F) : accent),
+            child: Text(noMail ? 'Sign out anyway' : 'Sign out'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    final old = token;
+    try {
+      await apiCall('POST', '/api/web/logout', token: old);
+    } catch (_) {}
+    token = '';
+    await savePref('token', '');
+    await savePref('cardno', '');
+    if (!mounted) return;
+    setState(() {
+      cardNo = '';
+      nick = '';
+      rank = 'Member';
+      coins = 0;
+      kills = 0;
+      playtime = 0;
+      linked = false;
+      pendingNick = '';
+      email = '';
+      medals = <Medal>[];
+      themes = <CardStyle>[];
+      themeId = 'default';
+      deleteAt = 0;
+      inboxUnread = 0;
+      _pushLinked = false;
+      tab = 0;
+      needLogin = true;
+    });
   }
 
   void note(String text) {
@@ -1153,21 +1448,13 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
   Future<void> refreshProfile({bool retry = true}) async {
     try {
       if (token.isEmpty) {
-        final r = await apiCall('POST', '/api/app/register');
-        if (r['_status'] == 200 && r['token'] is String) {
-          token = r['token'] as String;
-          cardNo = (r['card_no'] ?? '').toString();
-          await savePref('token', token);
-          await savePref('cardno', cardNo);
-          if (mounted) setState(() {});
-        } else {
-          return;
-        }
+        if (mounted) setState(() => needLogin = true);
+        return;
       }
       final me = await apiCall('GET', '/api/app/me', token: token);
       final st = me['_status'];
       if (st == 401 && retry) {
-        // the card was deleted in the admin panel: this phone gets a new one
+        // the card was deleted or the session ended: sign in again
         token = '';
         await savePref('token', '');
         await refreshProfile(retry: false);
@@ -1175,6 +1462,8 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
       }
       if (st == 200 && mounted) {
         setState(() {
+          needLogin = false;
+          email = (me['email'] ?? '').toString();
           cardNo = (me['card_no'] ?? cardNo).toString();
           nick = (me['nick'] ?? '').toString();
           rank = (me['rank'] ?? 'Member').toString();
@@ -1675,6 +1964,7 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
   Widget build(BuildContext context) {
     // pick the colors: Default or Light (white)
     kWhite = themeMode.value == ThemeMode.light;
+    if (needLogin) return _loginScreen();
     final pages = <Widget>[
       _cardTab(),
       _newsTab(),
@@ -2408,6 +2698,16 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
           child: Column(
             children: [
               ListTile(
+                leading: const Icon(Icons.mail_rounded, color: accent),
+                title: const Text('E-mail'),
+                subtitle: Text(email.isNotEmpty ? email : 'No e-mail yet. Tap to add one.'),
+                trailing: email.isNotEmpty
+                    ? const Icon(Icons.check_circle_rounded, color: Color(0xFF2E9E5B))
+                    : const Icon(Icons.chevron_right_rounded),
+                onTap: email.isNotEmpty ? null : addEmail,
+              ),
+              const Divider(height: 1),
+              ListTile(
                 leading: const Icon(Icons.person_rounded, color: accent),
                 title: const Text('Game account'),
                 subtitle: Text(linked
@@ -2461,6 +2761,13 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
                 title: const Text('Sign in to the website'),
                 subtitle: const Text('Enter the code shown on the site'),
                 onTap: webLogin,
+              ),
+              const Divider(height: 1),
+              ListTile(
+                leading: const Icon(Icons.logout_rounded, color: accent),
+                title: const Text('Sign out'),
+                subtitle: const Text('Sign out of this phone'),
+                onTap: signOut,
               ),
               const Divider(height: 1),
               ListTile(
