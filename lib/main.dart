@@ -3780,7 +3780,8 @@ class _NewsPageState extends State<NewsPage> {
     return Scaffold(
       appBar: AppBar(title: const Text('News')),
       body: ListView(
-        padding: const EdgeInsets.all(22),
+        padding: EdgeInsets.fromLTRB(
+            22, 22, 22, 22 + MediaQuery.of(context).padding.bottom + 16),
         children: [
           if (item.image != null) ...[
             NewsPicture(url: item.image!, height: null),

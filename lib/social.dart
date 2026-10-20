@@ -1156,7 +1156,8 @@ class _FriendsPageState extends State<FriendsPage> {
               : RefreshIndicator(
                   onRefresh: () => load(),
                   child: ListView(
-                    padding: const EdgeInsets.fromLTRB(18, 4, 18, 28),
+                    padding: EdgeInsets.fromLTRB(
+                        18, 4, 18, 28 + MediaQuery.of(context).padding.bottom),
                     keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
                     children: [
                       _label('Add a friend'),
@@ -1689,7 +1690,8 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
           : (failed || p == null)
               ? Center(child: Text('Could not load this profile.', style: TextStyle(color: mutedColor)))
               : ListView(
-                  padding: const EdgeInsets.fromLTRB(20, 6, 20, 30),
+                  padding: EdgeInsets.fromLTRB(
+                      20, 6, 20, 30 + MediaQuery.of(context).padding.bottom),
                   keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
                   children: [
                     if (p['private'] == true) ...[
@@ -1905,7 +1907,8 @@ class _PrivacyPageState extends State<PrivacyPage> {
                   ? Text('Could not load.', style: TextStyle(color: mutedColor))
                   : const CircularProgressIndicator())
           : ListView(
-              padding: const EdgeInsets.fromLTRB(18, 8, 18, 24),
+              padding: EdgeInsets.fromLTRB(
+                  18, 8, 18, 24 + MediaQuery.of(context).padding.bottom),
               children: [
                 Container(
                   decoration: BoxDecoration(
