@@ -629,10 +629,13 @@ class _ChatPageState extends State<ChatPage> {
 
   Future<void> send() async {
     final t = ctl.text.trim();
-    if (t.isEmpty || sending) return;
+    if (t.isEmpty) return;
+    // show the message at once; the server answer only replaces it
+    final tmp = <String, dynamic>{'id': 0, 'mine': true, 'body': t, 'pending': true};
     setState(() {
-      sending = true;
       error = '';
+      msgs.add(tmp);
+      ctl.clear();
     });
     try {
       final r = await apiCall('POST', '/api/app/messages/send',
@@ -642,21 +645,31 @@ class _ChatPageState extends State<ChatPage> {
         final m = _m(r['item']);
         setState(() {
           final id = (m['id'] as num?)?.toInt() ?? 0;
-          if (id == 0 || !msgs.any((x) => x['id'] == id)) msgs.add(m);
+          final dup = id > 0 && msgs.any((x) => x['id'] == id);
+          if (dup) {
+            msgs.remove(tmp);
+          } else {
+            final i = msgs.indexOf(tmp);
+            if (i >= 0) {
+              msgs[i] = m;
+            } else {
+              msgs.add(m);
+            }
+          }
           if (id > last) last = id;
-          ctl.clear();
-          sending = false;
         });
       } else {
         setState(() {
-          sending = false;
+          msgs.remove(tmp);
+          ctl.text = t;
           error = _errs[(r['error'] ?? '').toString()] ?? 'Could not send. Try again.';
         });
       }
     } catch (_) {
       if (mounted) {
         setState(() {
-          sending = false;
+          msgs.remove(tmp);
+          ctl.text = t;
           error = 'Cannot reach the server.';
         });
       }
@@ -718,7 +731,7 @@ class _ChatPageState extends State<ChatPage> {
                           constraints: BoxConstraints(
                               maxWidth: MediaQuery.of(context).size.width * 0.78),
                           decoration: BoxDecoration(
-                            color: mine ? accent : tintGrey,
+                            color: mine ? (m['pending'] == true ? accent.withAlpha(170) : accent) : tintGrey,
                             borderRadius: BorderRadius.only(
                               topLeft: const Radius.circular(16),
                               topRight: const Radius.circular(16),
@@ -774,7 +787,7 @@ class _ChatPageState extends State<ChatPage> {
                   ),
                   const SizedBox(width: 6),
                   IconButton.filled(
-                    onPressed: sending ? null : send,
+                    onPressed: send,
                     style: IconButton.styleFrom(backgroundColor: accent),
                     icon: const Icon(Icons.send_rounded, color: Colors.white),
                   ),
