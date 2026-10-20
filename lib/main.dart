@@ -879,10 +879,13 @@ List<BoxShadow> softShadow() => const [
 // ---------------------------------------------------------------- e-mail sign in / add e-mail
 
 class EmailFlow extends StatefulWidget {
-  const EmailFlow({super.key, required this.addMode, this.token = '', required this.onDone});
+  const EmailFlow({super.key, required this.addMode, this.createMode = false, this.token = '', required this.onDone});
 
   /// false: sign in (or create an account) with an e-mail. true: add an e-mail to the signed-in card.
   final bool addMode;
+
+  /// true: new account (asks for a nickname first)
+  final bool createMode;
   final String token;
   final void Function(String token) onDone;
 
@@ -893,6 +896,7 @@ class EmailFlow extends StatefulWidget {
 class _EmailFlowState extends State<EmailFlow> {
   final emailC = TextEditingController();
   final codeC = TextEditingController();
+  final nameC = TextEditingController();
   bool codeStep = false;
   bool busy = false;
   bool news = false;
@@ -903,11 +907,16 @@ class _EmailFlowState extends State<EmailFlow> {
   void dispose() {
     emailC.dispose();
     codeC.dispose();
+    nameC.dispose();
     super.dispose();
   }
 
   Future<void> send() async {
     final em = emailC.text.trim().toLowerCase();
+    if (widget.createMode && !RegExp(r'^[A-Za-z0-9_.]{2,16}$').hasMatch(nameC.text.trim())) {
+      setState(() => msg = 'Nickname: 2 to 16 letters, numbers, _ or .');
+      return;
+    }
     if (!RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]{2,}$').hasMatch(em)) {
       setState(() => msg = 'Type a valid e-mail.');
       return;
@@ -962,9 +971,23 @@ class _EmailFlowState extends State<EmailFlow> {
     try {
       final r = await apiCall('POST', widget.addMode ? '/api/app/email-change-verify' : '/api/web/email-verify',
           token: widget.addMode ? widget.token : null,
-          data: widget.addMode ? {'email': email, 'code': code} : {'email': email, 'code': code, 'newsletter': news});
+          data: widget.addMode
+              ? {'email': email, 'code': code}
+              : {
+                  'email': email,
+                  'code': code,
+                  'newsletter': news,
+                  if (widget.createMode) 'name': nameC.text.trim(),
+                });
       final st = r['_status'];
       if (!mounted) return;
+      if (st == 200 && r['status'] == 'need_name') {
+        setState(() {
+          busy = false;
+          msg = 'There is no account with this e-mail yet. Tap "Create one" below.';
+        });
+        return;
+      }
       if (st == 200) {
         widget.onDone(widget.addMode ? '' : (r['token'] ?? '').toString());
         return;
@@ -996,6 +1019,21 @@ class _EmailFlowState extends State<EmailFlow> {
             style: TextStyle(color: mutedColor, height: 1.4),
           ),
           const SizedBox(height: 14),
+          if (widget.createMode) ...[
+            TextField(
+              controller: nameC,
+              autocorrect: false,
+              maxLength: 16,
+              enabled: !busy,
+              style: TextStyle(color: inkColor),
+              decoration: const InputDecoration(
+                  labelText: 'Your Minecraft nickname', border: OutlineInputBorder(), counterText: ''),
+            ),
+            const SizedBox(height: 6),
+            Text('Your account shows this name plus a short code until you link your Minecraft account with /link. Then your real game nickname is used.',
+                style: TextStyle(color: mutedColor, fontSize: 12, height: 1.4)),
+            const SizedBox(height: 12),
+          ],
           TextField(
             controller: emailC,
             keyboardType: TextInputType.emailAddress,
@@ -1004,7 +1042,7 @@ class _EmailFlowState extends State<EmailFlow> {
             style: TextStyle(color: inkColor),
             decoration: const InputDecoration(labelText: 'E-mail', border: OutlineInputBorder()),
           ),
-          if (!widget.addMode)
+          if (!widget.addMode && widget.createMode)
             CheckboxListTile(
               value: news,
               contentPadding: EdgeInsets.zero,
@@ -1098,6 +1136,8 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
   int deleteAt = 0;
   int inboxUnread = 0;
   String email = '';
+  String displayName = '';
+  bool creating = false;
   bool needLogin = false;
   bool _pushLinked = false;
 
@@ -1203,11 +1243,13 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
                 children: [
                   Text('MVP', style: TextStyle(fontSize: 34, fontWeight: FontWeight.w900, letterSpacing: 4, color: accent)),
                   const SizedBox(height: 6),
-                  Text('Sign in with e-mail',
+                  Text(creating ? 'Create your MVP account' : 'Log in with e-mail',
                       style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800, color: inkColor)),
                   const SizedBox(height: 16),
                   EmailFlow(
+                    key: ValueKey(creating),
                     addMode: false,
+                    createMode: creating,
                     onDone: (t) async {
                       if (t.isEmpty) return;
                       token = t;
@@ -1217,6 +1259,21 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
                       await refreshProfile();
                       load();
                     },
+                  ),
+                  const SizedBox(height: 18),
+                  Center(
+                    child: Wrap(
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: [
+                        Text(creating ? 'Already have an account? ' : 'Don\u2019t have an MVP account yet? ',
+                            style: TextStyle(color: mutedColor)),
+                        GestureDetector(
+                          onTap: () => setState(() => creating = !creating),
+                          child: Text(creating ? 'Log in' : 'Create one',
+                              style: const TextStyle(color: accent, decoration: TextDecoration.underline, fontWeight: FontWeight.w700)),
+                        ),
+                      ],
+                    ),
                   ),
                 ],
               ),
@@ -1290,6 +1347,8 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
       linked = false;
       pendingNick = '';
       email = '';
+      displayName = '';
+      creating = false;
       medals = <Medal>[];
       themes = <CardStyle>[];
       themeId = 'default';
@@ -1464,6 +1523,7 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
         setState(() {
           needLogin = false;
           email = (me['email'] ?? '').toString();
+          displayName = (me['display_name'] ?? '').toString();
           cardNo = (me['card_no'] ?? cardNo).toString();
           nick = (me['nick'] ?? '').toString();
           rank = (me['rank'] ?? 'Member').toString();
@@ -2041,7 +2101,7 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
   // -------------------------------------------------------- card tab
 
   Widget _cardTab() {
-    final name = nick.isEmpty ? 'Player' : nick;
+    final name = nick.isNotEmpty ? nick : (displayName.isNotEmpty ? displayName : 'Player');
     final cardNum = cardNo.length == 8 ? cardNo : '';
     return RefreshIndicator(
       color: accent,
@@ -2124,7 +2184,7 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
           ),
           const SizedBox(height: 18),
           MemberCard(
-            nick: nick,
+            nick: nick.isNotEmpty ? nick : displayName,
             cardNo: cardNum,
             since: since,
             rank: rank,
