@@ -2239,7 +2239,8 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
             onTap: linked ? null : openRegister,
           ),
           const SizedBox(height: 18),
-          Row(
+          IntrinsicHeight(
+            child: Row(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Expanded(
@@ -2273,6 +2274,7 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
                 ),
               ),
             ],
+          ),
           ),
           const SizedBox(height: 14),
           _medalsButton(),
