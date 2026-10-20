@@ -30,30 +30,33 @@ const Color accentDark = Color(0xFF0A4D86);
 
 /// White theme switch (Settings > Theme: Default / Light). Every color below reads it.
 bool kWhite = false;
+
+/// Dark theme (Settings > Theme: Dark).
+bool kDark = false;
 final ValueNotifier<ThemeMode> themeMode =
     ValueNotifier<ThemeMode>(ThemeMode.system);
 
 Color get bgColor =>
-    kWhite ? const Color(0xFFFFFFFF) : const Color(0xFFEEF2F6);
-Color get surfaceColor => kWhite ? const Color(0xFFF1F5F9) : Colors.white;
+    kDark ? const Color(0xFF07111B) : kWhite ? const Color(0xFFFFFFFF) : const Color(0xFFEEF2F6);
+Color get surfaceColor => kDark ? const Color(0xFF0F1D2B) : kWhite ? const Color(0xFFF1F5F9) : Colors.white;
 Color get inkColor =>
-    kWhite ? const Color(0xFF0B1B2B) : const Color(0xFF0B1B2B);
+    kDark ? const Color(0xFFE8F1F8) : kWhite ? const Color(0xFF0B1B2B) : const Color(0xFF0B1B2B);
 Color get mutedColor =>
-    kWhite ? const Color(0xFF5B6F82) : const Color(0xFF5B6F82);
+    kDark ? const Color(0xFF9DB2C4) : kWhite ? const Color(0xFF5B6F82) : const Color(0xFF5B6F82);
 Color get navMuted =>
-    kWhite ? const Color(0xFF8A9AAB) : const Color(0xFF8A9AAB);
+    kDark ? const Color(0xFF6E8396) : kWhite ? const Color(0xFF8A9AAB) : const Color(0xFF8A9AAB);
 Color get tintBlue =>
-    kWhite ? const Color(0xFFE3F2FC) : const Color(0xFFE3F2FC);
+    kDark ? const Color(0xFF10304A) : kWhite ? const Color(0xFFE3F2FC) : const Color(0xFFE3F2FC);
 Color get tintAmber =>
-    kWhite ? const Color(0xFFFFF1D6) : const Color(0xFFFFF1D6);
+    kDark ? const Color(0xFF3A2E10) : kWhite ? const Color(0xFFFFF1D6) : const Color(0xFFFFF1D6);
 Color get tintRed =>
-    kWhite ? const Color(0xFFFDE4E6) : const Color(0xFFFDE4E6);
+    kDark ? const Color(0xFF3A1519) : kWhite ? const Color(0xFFFDE4E6) : const Color(0xFFFDE4E6);
 Color get tintGrey =>
-    kWhite ? const Color(0xFFE8EEF4) : const Color(0xFFF1F5F9);
+    kDark ? const Color(0xFF16222F) : kWhite ? const Color(0xFFE8EEF4) : const Color(0xFFF1F5F9);
 Color get tintPoll =>
-    kWhite ? const Color(0xFFEAF5FD) : const Color(0xFFEAF5FD);
+    kDark ? const Color(0xFF0F2A40) : kWhite ? const Color(0xFFEAF5FD) : const Color(0xFFEAF5FD);
 Color get lineColor =>
-    kWhite ? const Color(0xFFD3E3EE) : const Color(0xFFD3E3EE);
+    kDark ? const Color(0xFF22384B) : kWhite ? const Color(0xFFD3E3EE) : const Color(0xFFD3E3EE);
 
 String firebaseError = '';
 
@@ -72,7 +75,11 @@ Future<void> main() async {
   try {
     final p = await SharedPreferences.getInstance();
     themeMode.value =
-        p.getString('theme_mode') == 'light' ? ThemeMode.light : ThemeMode.system;
+        p.getString('theme_mode') == 'light'
+            ? ThemeMode.light
+            : p.getString('theme_mode') == 'dark'
+                ? ThemeMode.dark
+                : ThemeMode.system;
   } catch (_) {}
   runApp(MvpApp(firebaseOk: firebaseOk));
 }
@@ -86,26 +93,43 @@ class MvpApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return ValueListenableBuilder<ThemeMode>(
       valueListenable: themeMode,
-      builder: (context, mode, _) => MaterialApp(
-        title: 'MVP',
-        debugShowCheckedModeBanner: false,
-        themeMode: ThemeMode.light,
-        theme: ThemeData(
-          useMaterial3: true,
-          brightness: Brightness.light,
-          colorScheme: ColorScheme.fromSeed(seedColor: accent).copyWith(
-            primary: accent,
-            surface: Colors.white,
+      builder: (context, mode, _) {
+        kWhite = mode == ThemeMode.light;
+        kDark = mode == ThemeMode.dark;
+        return MaterialApp(
+          title: 'MVP',
+          debugShowCheckedModeBanner: false,
+          themeMode: kDark ? ThemeMode.dark : ThemeMode.light,
+          theme: ThemeData(
+            useMaterial3: true,
+            brightness: Brightness.light,
+            colorScheme: ColorScheme.fromSeed(seedColor: accent).copyWith(
+              primary: accent,
+              surface: Colors.white,
+            ),
+            scaffoldBackgroundColor: bgColor,
+            appBarTheme: AppBarTheme(
+              backgroundColor: bgColor,
+              foregroundColor: inkColor,
+              elevation: 0,
+            ),
           ),
-          scaffoldBackgroundColor: const Color(0xFFEEF2F6),
-          appBarTheme: const AppBarTheme(
-            backgroundColor: Color(0xFFEEF2F6),
-            foregroundColor: Color(0xFF0B1B2B),
-            elevation: 0,
+          darkTheme: ThemeData(
+            useMaterial3: true,
+            brightness: Brightness.dark,
+            colorScheme: ColorScheme.fromSeed(
+                    seedColor: accent, brightness: Brightness.dark)
+                .copyWith(primary: accentLight, surface: surfaceColor),
+            scaffoldBackgroundColor: bgColor,
+            appBarTheme: AppBarTheme(
+              backgroundColor: bgColor,
+              foregroundColor: inkColor,
+              elevation: 0,
+            ),
           ),
-        ),
-        home: Shell(firebaseOk: firebaseOk),
-      ),
+          home: Shell(firebaseOk: firebaseOk),
+        );
+      },
     );
   }
 }
@@ -152,7 +176,8 @@ class Poll {
 }
 
 class CardStyle {
-  CardStyle({required this.id, required this.name, required this.colors});
+  CardStyle({required this.id, required this.name, required this.colors, this.anim = false});
+  final bool anim;
   final String id;
   final String name;
   final List<Color> colors;
@@ -160,6 +185,7 @@ class CardStyle {
   factory CardStyle.fromJson(Map<String, dynamic> j) => CardStyle(
         id: (j['id'] ?? 'default').toString(),
         name: (j['name'] ?? '').toString(),
+        anim: j['anim'] == true,
         colors: ((j['colors'] as List<dynamic>?) ?? <dynamic>[])
             .map((c) => Color(
                 int.tryParse('FF${c.toString().replaceAll('#', '')}',
@@ -1204,7 +1230,7 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
     if (mounted) setState(() {});
   }
 
-  /// Settings > Theme: Default or Light (white).
+  /// Settings > Theme: Default, Light (white) or Dark.
   Future<void> chooseTheme() async {
     await showModalBottomSheet<void>(
       context: context,
@@ -1216,6 +1242,7 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
             for (final o in const [
               ['system', 'Default', ThemeMode.system],
               ['light', 'Light (white)', ThemeMode.light],
+              ['dark', 'Dark', ThemeMode.dark],
             ])
               ListTile(
                 title: Text(o[1] as String, style: TextStyle(color: inkColor)),
@@ -1807,6 +1834,13 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
     return const [accentLight, accent, accentDark];
   }
 
+  bool get cardAnimated {
+    for (final t in themes) {
+      if (t.id == themeId) return t.anim;
+    }
+    return false;
+  }
+
   Future<void> votePoll(NewsItem n, int optionId) async {
     final p = n.poll;
     if (p == null || p.closed) return;
@@ -2029,6 +2063,7 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
   Widget build(BuildContext context) {
     // pick the colors: Default or Light (white)
     kWhite = themeMode.value == ThemeMode.light;
+    kDark = themeMode.value == ThemeMode.dark;
     if (needLogin) return _loginScreen();
     final pages = <Widget>[
       _cardTab(),
@@ -2194,7 +2229,7 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
             since: since,
             rank: rank,
             colors: cardColors,
-            animated: false,
+            animated: cardAnimated,
             onTap: linked ? null : openRegister,
           ),
           const SizedBox(height: 18),
@@ -2816,7 +2851,7 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
               ListTile(
                 leading: const Icon(Icons.dark_mode_rounded, color: accent),
                 title: const Text('Theme'),
-                subtitle: Text(themeMode.value == ThemeMode.light ? 'Light (white)' : 'Default'),
+                subtitle: Text(themeMode.value == ThemeMode.light ? 'Light (white)' : themeMode.value == ThemeMode.dark ? 'Dark' : 'Default'),
                 trailing: const Icon(Icons.chevron_right_rounded),
                 onTap: chooseTheme,
               ),
@@ -2870,6 +2905,16 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
 
 // ---------------------------------------------------------------- widgets
 
+/// Slides a repeating gradient by exactly one period, so the loop has no seam.
+class _SlideGradient extends GradientTransform {
+  const _SlideGradient(this.t);
+  final double t;
+
+  @override
+  Matrix4? transform(Rect bounds, {TextDirection? textDirection}) =>
+      Matrix4.translationValues(bounds.width * t, bounds.height * t, 0);
+}
+
 class MemberCard extends StatefulWidget {
   const MemberCard({
     super.key,
@@ -2898,7 +2943,7 @@ class _MemberCardState extends State<MemberCard>
     with SingleTickerProviderStateMixin {
   Offset tilt = Offset.zero;
   late final AnimationController _anim = AnimationController(
-      vsync: this, duration: const Duration(seconds: 7))
+      vsync: this, duration: const Duration(seconds: 9))
     ..repeat();
 
   @override
@@ -2945,27 +2990,26 @@ class _MemberCardState extends State<MemberCard>
           height: 216,
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(26),
-            gradient: LinearGradient(
-              colors: widget.animated
-                  ? [
+            gradient: widget.animated
+                ? LinearGradient(
+                    colors: [
                       widget.colors[0],
                       widget.colors[1],
                       widget.colors[2],
                       widget.colors[1],
                       widget.colors[0],
-                    ]
-                  : widget.colors,
-              stops: widget.animated
-                  ? const [0, 0.25, 0.5, 0.75, 1]
-                  : const [0, 0.55, 1],
-              begin: widget.animated
-                  ? Alignment(-1 + 2 * _anim.value, -1)
-                  : Alignment.topLeft,
-              end: widget.animated
-                  ? Alignment(1 + 2 * _anim.value, 1)
-                  : Alignment.bottomRight,
-              tileMode: widget.animated ? TileMode.mirror : TileMode.clamp,
-            ),
+                    ],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    tileMode: TileMode.repeated,
+                    transform: _SlideGradient(_anim.value),
+                  )
+                : LinearGradient(
+                    colors: widget.colors,
+                    stops: const [0, 0.55, 1],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
             boxShadow: [
               BoxShadow(
                 color: widget.colors[1].withAlpha(97),
