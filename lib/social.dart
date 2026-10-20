@@ -778,6 +778,14 @@ class _ChatPageState extends State<ChatPage> {
                       final imgId = (m['img'] as num?)?.toInt() ?? 0;
                       final imgUrl = '$apiBase/api/app/chat-image?id=$imgId';
                       final canDel = mine && ((m['id'] as num?)?.toInt() ?? 0) > 0;
+                      // show the time only on the last message of a run (same sender, same minute)
+                      bool showTime = true;
+                      if (i > 0) {
+                        final nx = reversed[i - 1];
+                        final a = ((m['at'] as num?)?.toInt() ?? 0) ~/ 60000;
+                        final b = ((nx['at'] as num?)?.toInt() ?? 0) ~/ 60000;
+                        if ((nx['mine'] == true) == mine && a == b && a != 0) showTime = false;
+                      }
                       return Align(
                         alignment: mine ? Alignment.centerRight : Alignment.centerLeft,
                         child: Column(
@@ -824,8 +832,9 @@ class _ChatPageState extends State<ChatPage> {
                             Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                Text(_fmtTime(m['at']),
-                                    style: TextStyle(fontSize: 11, color: mutedColor)),
+                                if (showTime)
+                                  Text(_fmtTime(m['at']),
+                                      style: TextStyle(fontSize: 11, color: mutedColor)),
                                 if (canDel)
                                   PopupMenuButton<String>(
                                     padding: EdgeInsets.zero,
@@ -841,7 +850,7 @@ class _ChatPageState extends State<ChatPage> {
                                           child: Text('Delete', style: TextStyle(color: Color(0xFFE8424F)))),
                                     ],
                                   )
-                                else
+                                else if (showTime)
                                   const SizedBox(height: 28),
                               ],
                             ),
