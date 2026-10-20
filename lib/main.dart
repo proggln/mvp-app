@@ -2878,7 +2878,7 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
               ),
               const Divider(height: 1),
               ListTile(
-                leading: const Icon(Icons.logout_rounded, color: accent),
+                leading: const Icon(Icons.logout_rounded, color: Color(0xFFC0343F)),
                 title: const Text('Sign out'),
                 subtitle: const Text('Sign out of this phone'),
                 onTap: signOut,
