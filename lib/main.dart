@@ -61,6 +61,9 @@ Color get lineColor =>
 
 String firebaseError = '';
 
+/// false while the app is in the background: live refresh timers skip their requests then
+bool appInForeground = true;
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   bool firebaseOk = false;
@@ -483,7 +486,9 @@ class _InboxPageState extends State<InboxPage> {
   void initState() {
     super.initState();
     load();
-    _refresh = Timer.periodic(const Duration(seconds: 8), (_) => load());
+    _refresh = Timer.periodic(const Duration(seconds: 30), (_) {
+      if (appInForeground) load();
+    });
   }
 
   @override
@@ -1237,7 +1242,7 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _pulseTimer = Timer.periodic(const Duration(seconds: 8), (_) => _pulse());
+    _pulseTimer = Timer.periodic(const Duration(seconds: 20), (_) => _pulse());
     themeMode.addListener(_themeChanged);
     () async {
       try {
@@ -1259,6 +1264,7 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     _appVisible = state == AppLifecycleState.resumed;
+    appInForeground = _appVisible;
     if (state == AppLifecycleState.resumed) {
       _pulse();
       loadQuiet();

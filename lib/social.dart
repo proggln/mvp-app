@@ -593,7 +593,9 @@ class _ChatPageState extends State<ChatPage> {
   void initState() {
     super.initState();
     pull();
-    timer = Timer.periodic(const Duration(seconds: 4), (_) => pull());
+    timer = Timer.periodic(const Duration(seconds: 5), (_) {
+      if (appInForeground) pull();
+    });
   }
 
   @override
@@ -941,7 +943,9 @@ class _FriendsPageState extends State<FriendsPage> {
   void initState() {
     super.initState();
     load();
-    timer = Timer.periodic(const Duration(seconds: 6), (_) => load(quiet: true));
+    timer = Timer.periodic(const Duration(seconds: 20), (_) {
+      if (appInForeground) load(quiet: true);
+    });
   }
 
   @override
