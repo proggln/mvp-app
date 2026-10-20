@@ -8,6 +8,11 @@ on:
 permissions:
   contents: write
 
+# builds wait for each other, so two of them never fight over the "latest" release
+concurrency:
+  group: build-apk
+  cancel-in-progress: false
+
 jobs:
   apk:
     runs-on: ubuntu-latest
