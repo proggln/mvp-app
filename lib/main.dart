@@ -3063,7 +3063,7 @@ class NewsCard extends StatelessWidget {
 
 // opens the phone's share menu (Discord, Snapchat, WhatsApp, ...) with a link to this news item
 Future<void> shareNews(NewsItem n) async {
-  final url = '$apiBase/n/${n.id}';
+  final url = '$siteUrl/n/${n.id}';
   try {
     await Share.share('${n.title}\n$url', subject: n.title);
   } catch (_) {}
