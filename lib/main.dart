@@ -445,10 +445,19 @@ class _InboxPageState extends State<InboxPage> {
   bool loading = true;
   String? error;
 
+  Timer? _refresh;
+
   @override
   void initState() {
     super.initState();
     load();
+    _refresh = Timer.periodic(const Duration(seconds: 8), (_) => load());
+  }
+
+  @override
+  void dispose() {
+    _refresh?.cancel();
+    super.dispose();
   }
 
   Future<void> load() async {
