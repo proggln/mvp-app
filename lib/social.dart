@@ -944,7 +944,10 @@ class _FriendsPageState extends State<FriendsPage> {
       onTap: onTap,
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
-        child: Row(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+        Row(
           children: [
             SkinHead(nick: nick, size: 40),
             const SizedBox(width: 12),
@@ -1002,7 +1005,14 @@ class _FriendsPageState extends State<FriendsPage> {
                     style: const TextStyle(
                         color: Colors.white, fontSize: 12, fontWeight: FontWeight.w800)),
               ),
-            ...actions,
+            if (actions.length == 1) ...actions,
+          ],
+        ),
+            if (actions.length > 1)
+              Padding(
+                padding: const EdgeInsets.only(left: 46, top: 8),
+                child: Wrap(spacing: 0, runSpacing: 6, children: actions),
+              ),
           ],
         ),
       ),
@@ -1057,7 +1067,7 @@ class _FriendsPageState extends State<FriendsPage> {
                                 onSubmitted: addFriend,
                                 style: TextStyle(color: inkColor),
                                 decoration: const InputDecoration(
-                                    hintText: 'Minecraft nickname',
+                                    hintText: 'Nickname',
                                     border: InputBorder.none,
                                     counterText: ''),
                               ),
@@ -1065,7 +1075,7 @@ class _FriendsPageState extends State<FriendsPage> {
                             FilledButton(
                               onPressed: () => addFriend(ctl.text),
                               style: FilledButton.styleFrom(backgroundColor: accent),
-                              child: const Text('Send request'),
+                              child: const Text('Send'),
                             ),
                           ],
                         ),
