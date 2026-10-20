@@ -91,5 +91,7 @@ jobs:
         run: |
           cp build_app/build/app/outputs/flutter-apk/app-release.apk mvp-app.apk
           # the code repository is private: downloads live in the small public repo mvp-releases
+          # a brand new repository has no commits yet, and a release needs one: add a README the first time
+          gh api repos/proggln/mvp-releases/contents/README.md >/dev/null 2>&1 || gh api -X PUT repos/proggln/mvp-releases/contents/README.md -f message="Add README" -f content="$(printf 'Downloads for the MVP Android app.\n' | base64 -w0)"
           gh release delete latest --repo proggln/mvp-releases --cleanup-tag --yes || true
           gh release create latest mvp-app.apk --repo proggln/mvp-releases --title "MVP app build ${{ github.run_number }}" --notes "Latest Android build of the MVP app."
