@@ -1390,7 +1390,7 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
     );
   }
 
-  Widget _stat(IconData icon, String value, String label, {String? sub}) => Expanded(
+  Widget _stat(Widget icon, String value, String label, {String? sub}) => Expanded(
         child: Container(
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
@@ -1401,7 +1401,13 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(icon, color: accent, size: 22),
+              Container(
+                width: 34,
+                height: 34,
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(color: tintBlue, borderRadius: BorderRadius.circular(11)),
+                child: icon,
+              ),
               const SizedBox(height: 8),
               Text(value,
                   style: TextStyle(fontSize: 19, fontWeight: FontWeight.w800, color: inkColor)),
@@ -1414,6 +1420,56 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
           ),
         ),
       );
+
+  void _showMedal(Map<String, dynamic> m) {
+    final medal = Medal.fromJson(m);
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: surfaceColor,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(22, 22, 22, 26),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 56,
+                height: 56,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: medal.color.withAlpha(40),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: PixelIcon(medal.icon, size: 36),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(medal.name,
+                        style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18, color: inkColor)),
+                    if (medal.description.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 4),
+                        child: Text(medal.description, style: TextStyle(color: inkColor, height: 1.4)),
+                      ),
+                    if (medal.dateText.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 6),
+                        child: Text(medal.dateText, style: TextStyle(color: mutedColor, fontSize: 12)),
+                      ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 
   Widget _actions(Map<String, dynamic> p) {
     final rel = (p['relation'] ?? 'none').toString();
@@ -1536,15 +1592,15 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
                       Row(
                         children: [
                           if (p['coins'] != null) ...[
-                            _stat(Icons.monetization_on_rounded, '${(p['coins'] as num?)?.toInt() ?? 0}', 'Coins'),
+                            _stat(Image.asset('assets/coin.png'), '${(p['coins'] as num?)?.toInt() ?? 0}', 'Coins'),
                             const SizedBox(width: 10),
                           ],
-                          _stat(Icons.bolt_rounded, '${(p['kills'] as num?)?.toInt() ?? 0}', 'Kills',
+                          _stat(Image.asset('assets/sword.png'), '${(p['kills'] as num?)?.toInt() ?? 0}', 'Kills',
                               sub: ((p['kills_rank'] as num?)?.toInt() ?? 0) > 0
                                   ? 'TOP #${p['kills_rank']}'
                                   : null),
                           const SizedBox(width: 10),
-                          _stat(Icons.heart_broken_rounded, '${(p['deaths'] as num?)?.toInt() ?? 0}', 'Deaths'),
+                          _stat(const _Skull(), '${(p['deaths'] as num?)?.toInt() ?? 0}', 'Deaths'),
                         ],
                       ),
                       const SizedBox(height: 14),
@@ -1558,20 +1614,22 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
                           runSpacing: 8,
                           children: [
                             for (final m in _list(p['medals']))
-                              Tooltip(
-                                message: (m['description'] ?? '').toString(),
+                              GestureDetector(
+                                onTap: () => _showMedal(m),
                                 child: Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                                  width: 52,
+                                  height: 52,
+                                  alignment: Alignment.center,
                                   decoration: BoxDecoration(
-                                    color: _hex(m['color'], accent).withAlpha(36),
-                                    borderRadius: BorderRadius.circular(999),
-                                    border: Border.all(color: _hex(m['color'], accent).withAlpha(120)),
+                                    color: _hex(m['color'], accent).withAlpha(40),
+                                    borderRadius: BorderRadius.circular(16),
+                                    border: Border.all(color: _hex(m['color'], accent).withAlpha(140)),
                                   ),
-                                  child: Text((m['name'] ?? '').toString(),
-                                      style: TextStyle(
-                                          fontWeight: FontWeight.w700,
-                                          fontSize: 13,
-                                          color: inkColor)),
+                                  child: PixelIcon(
+                                      kMedalIcons.containsKey((m['icon'] ?? '').toString())
+                                          ? (m['icon'] ?? '').toString()
+                                          : 'medal',
+                                      size: 32),
                                 ),
                               ),
                           ],
@@ -1602,4 +1660,147 @@ class _Slide extends GradientTransform {
   @override
   Matrix4? transform(Rect bounds, {TextDirection? textDirection}) =>
       Matrix4.translationValues(bounds.width * t, bounds.height * t, 0);
+}
+
+
+class _Skull extends StatelessWidget {
+  const _Skull();
+
+  @override
+  Widget build(BuildContext context) => CustomPaint(painter: _SkullPainter());
+}
+
+class _SkullPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final k = size.width / 24;
+    final paint = Paint()
+      ..color = accent
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2 * k
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round;
+    Offset o(double x, double y) => Offset(x * k, y * k);
+    final path = Path()
+      ..moveTo(12 * k, 3 * k)
+      ..cubicTo(7.6 * k, 3 * k, 4 * k, 6.2 * k, 4 * k, 10.5 * k)
+      ..cubicTo(4 * k, 12.9 * k, 5.1 * k, 14.7 * k, 7 * k, 15.9 * k)
+      ..lineTo(7 * k, 19 * k)
+      ..lineTo(17 * k, 19 * k)
+      ..lineTo(17 * k, 15.9 * k)
+      ..cubicTo(18.9 * k, 14.7 * k, 20 * k, 12.9 * k, 20 * k, 10.5 * k)
+      ..cubicTo(20 * k, 6.2 * k, 16.4 * k, 3 * k, 12 * k, 3 * k)
+      ..close();
+    canvas.drawPath(path, paint);
+    canvas.drawCircle(o(9, 11), 1.3 * k, paint);
+    canvas.drawCircle(o(15, 11), 1.3 * k, paint);
+    canvas.drawLine(o(10, 19), o(10, 17), paint);
+    canvas.drawLine(o(14, 19), o(14, 17), paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+
+/// Privacy switches: public profile, coins, online status, suggestions.
+class PrivacyPage extends StatefulWidget {
+  const PrivacyPage({super.key, required this.token});
+
+  final String token;
+
+  @override
+  State<PrivacyPage> createState() => _PrivacyPageState();
+}
+
+class _PrivacyPageState extends State<PrivacyPage> {
+  Map<String, dynamic>? me;
+  bool failed = false;
+
+  @override
+  void initState() {
+    super.initState();
+    load();
+  }
+
+  Future<void> load() async {
+    try {
+      final r = await apiCall('GET', '/api/app/me', token: widget.token);
+      if (!mounted) return;
+      setState(() {
+        me = r;
+        failed = r['_status'] != 200;
+      });
+    } catch (_) {
+      if (mounted) setState(() => failed = true);
+    }
+  }
+
+  Future<void> flip(String route, String field, bool shown) async {
+    final m = me;
+    if (m == null) return;
+    final hidden = !shown;
+    final was = m[field];
+    setState(() => m[field] = hidden);
+    try {
+      final r = await apiCall('POST', route, token: widget.token, data: {'on': hidden});
+      if (r['_status'] != 200 && mounted) {
+        setState(() => m[field] = was);
+        _toast(context, 'Could not save. Try again later.');
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() => m[field] = was);
+        _toast(context, 'Cannot reach the server.');
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final m = me;
+    return Scaffold(
+      backgroundColor: bgColor,
+      appBar: AppBar(title: const Text('Privacy')),
+      body: m == null
+          ? Center(
+              child: failed
+                  ? Text('Could not load.', style: TextStyle(color: mutedColor))
+                  : const CircularProgressIndicator())
+          : ListView(
+              padding: const EdgeInsets.fromLTRB(18, 8, 18, 24),
+              children: [
+                Container(
+                  decoration: BoxDecoration(
+                    color: surfaceColor,
+                    borderRadius: BorderRadius.circular(20),
+                    boxShadow: softShadow(),
+                  ),
+                  child: Column(
+                    children: [
+                      SwitchListTile(
+                        title: const Text('Show when I am online'),
+                        subtitle: const Text('Turn off to look offline to others.'),
+                        value: m['hide_online'] != true,
+                        onChanged: (v) => flip('/api/app/hide-online', 'hide_online', v),
+                      ),
+                      Divider(height: 1, color: lineColor),
+                      SwitchListTile(
+                        title: const Text('Show MVP coins in my public profile'),
+                        value: m['hide_coins'] != true,
+                        onChanged: (v) => flip('/api/app/hide-coins', 'hide_coins', v),
+                      ),
+                      Divider(height: 1, color: lineColor),
+                      SwitchListTile(
+                        title: const Text('Show me in People you may know'),
+                        value: m['hide_suggest'] != true,
+                        onChanged: (v) => flip('/api/app/hide-suggest', 'hide_suggest', v),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+    );
+  }
 }

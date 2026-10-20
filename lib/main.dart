@@ -2878,6 +2878,17 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
                 onTap: linked ? null : openRegister,
               ),
               const Divider(height: 1),
+              if (linked) ...[
+                ListTile(
+                  leading: const Icon(Icons.visibility_rounded, color: accent),
+                  title: const Text('Privacy'),
+                  subtitle: const Text('Online status, coins, suggestions'),
+                  trailing: const Icon(Icons.chevron_right_rounded),
+                  onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute<void>(builder: (_) => PrivacyPage(token: token))),
+                ),
+                const Divider(height: 1),
+              ],
               ListTile(
                 leading: const Icon(Icons.palette_rounded, color: accent),
                 title: const Text('Card style'),
