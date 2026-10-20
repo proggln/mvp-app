@@ -85,18 +85,50 @@ Future<void> main() async {
   runApp(MvpApp(firebaseOk: firebaseOk));
 }
 
-class MvpApp extends StatelessWidget {
+/// Is the phone itself in dark mode? (used when the theme is "Automatic")
+bool phoneIsDark() =>
+    WidgetsBinding.instance.platformDispatcher.platformBrightness ==
+    Brightness.dark;
+
+class MvpApp extends StatefulWidget {
   const MvpApp({super.key, required this.firebaseOk});
 
   final bool firebaseOk;
+
+  @override
+  State<MvpApp> createState() => _MvpAppState();
+}
+
+class _MvpAppState extends State<MvpApp> with WidgetsBindingObserver {
+  bool get firebaseOk => widget.firebaseOk;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangePlatformBrightness() {
+    // the phone switched between light and dark: follow it
+    if (mounted) setState(() {});
+  }
 
   @override
   Widget build(BuildContext context) {
     return ValueListenableBuilder<ThemeMode>(
       valueListenable: themeMode,
       builder: (context, mode, _) {
-        kWhite = mode == ThemeMode.light;
-        kDark = mode == ThemeMode.dark;
+        kWhite = mode == ThemeMode.light ||
+            (mode == ThemeMode.system && !phoneIsDark());
+        kDark = mode == ThemeMode.dark ||
+            (mode == ThemeMode.system && phoneIsDark());
         return MaterialApp(
           title: 'MVP',
           debugShowCheckedModeBanner: false,
@@ -1273,7 +1305,7 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
           mainAxisSize: MainAxisSize.min,
           children: [
             for (final o in const [
-              ['system', 'Default', ThemeMode.system],
+              ['system', 'Automatic (follow phone)', ThemeMode.system],
               ['light', 'Light (white)', ThemeMode.light],
               ['dark', 'Dark', ThemeMode.dark],
             ])
@@ -2129,8 +2161,10 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
   @override
   Widget build(BuildContext context) {
     // pick the colors: Default or Light (white)
-    kWhite = themeMode.value == ThemeMode.light;
-    kDark = themeMode.value == ThemeMode.dark;
+    kWhite = themeMode.value == ThemeMode.light ||
+        (themeMode.value == ThemeMode.system && !phoneIsDark());
+    kDark = themeMode.value == ThemeMode.dark ||
+        (themeMode.value == ThemeMode.system && phoneIsDark());
     if (needLogin) return _loginScreen();
     final pages = <Widget>[
       _cardTab(),
