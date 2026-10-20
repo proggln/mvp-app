@@ -19,8 +19,8 @@ import 'firebase_options.dart';
 
 const String apiBase = 'https://mvp-news-api.mvp-shop.workers.dev';
 const String discordUrl = 'https://discord.gg/CWTBxgBdr';
-const String siteUrl = 'https://mvp.mvp-shop.workers.dev';
-const String storeUrl = 'https://mvp.mvp-shop.workers.dev/store/';
+const String siteUrl = 'https://playmvp.org';
+const String storeUrl = 'https://playmvp.org/store/';
 const String serverIp = 'mc.playmvp.org';
 const String pushTopic = 'news';
 
