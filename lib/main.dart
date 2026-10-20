@@ -16,6 +16,7 @@ import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'firebase_options.dart';
+import 'social.dart';
 
 const String apiBase = 'https://mvp-news-api.mvp-shop.workers.dev';
 const String discordUrl = 'https://playmvp.org/discord';
@@ -539,14 +540,6 @@ class _InboxPageState extends State<InboxPage> {
                     const SizedBox(height: 8),
                     RichBody(text: m.body, style: TextStyle(fontSize: 15, height: 1.45, color: inkColor)),
                     for (final id in videoIds(m.body)) VideoTile(id: id),
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: TextButton(
-                        onPressed: () => hide(m),
-                        style: TextButton.styleFrom(foregroundColor: navMuted),
-                        child: const Text('Delete', style: TextStyle(fontSize: 12, decoration: TextDecoration.underline)),
-                      ),
-                    ),
                   ],
                 ),
               ),
@@ -1836,7 +1829,7 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
     Navigator.of(context).push(
       MaterialPageRoute<void>(
           builder: (_) =>
-              NewsPage(item: n, onVote: voteNews, onPollVote: votePoll)),
+              NewsPage(item: n, token: token, onVote: voteNews, onPollVote: votePoll)),
     );
   }
 
@@ -2243,6 +2236,7 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
             rank: rank,
             colors: cardColors,
             animated: cardAnimated,
+            avatarNick: linked ? nick : '',
             onTap: linked ? null : openRegister,
           ),
           const SizedBox(height: 18),
@@ -2286,6 +2280,14 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
           ),
           const SizedBox(height: 14),
           _medalsButton(),
+          if (linked) ...[
+            const SizedBox(height: 12),
+            _socialTile(Icons.people_alt_rounded, 'Friends', 'Chat and add friends',
+                () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => FriendsPage(token: token)))),
+            const SizedBox(height: 12),
+            _socialTile(Icons.badge_rounded, 'See my profile', 'How others see you',
+                () => openProfile(context, token, nick)),
+          ],
           const SizedBox(height: 14),
           _storeTile(),
           const SizedBox(height: 14),
@@ -2671,6 +2673,39 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
   }
 
   // "Medals" button on the card screen: opens a sheet with all medals of the player
+  Widget _socialTile(IconData icon, String title, String sub, VoidCallback onTap) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(20),
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+            color: surfaceColor, borderRadius: BorderRadius.circular(20), boxShadow: softShadow()),
+        child: Row(
+          children: [
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(color: tintBlue, borderRadius: BorderRadius.circular(12)),
+              child: Icon(icon, color: accent),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title, style: TextStyle(fontWeight: FontWeight.w800, color: inkColor)),
+                  Text(sub, style: TextStyle(color: mutedColor, fontSize: 13)),
+                ],
+              ),
+            ),
+            Icon(Icons.chevron_right_rounded, color: mutedColor),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _medalsButton() {
     final preview = medals.take(6).toList();
     return Material(
@@ -2943,8 +2978,10 @@ class MemberCard extends StatefulWidget {
     required this.onTap,
     this.colors = const [accentLight, accent, accentDark],
     this.animated = false,
+    this.avatarNick = '',
   });
 
+  final String avatarNick;
   final bool animated;
   final List<Color> colors;
   final String nick;
@@ -3124,6 +3161,10 @@ class _MemberCardState extends State<MemberCard>
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
+                        if (widget.avatarNick.isNotEmpty) ...[
+                          SkinHead(nick: widget.avatarNick, size: 44),
+                          const SizedBox(width: 12),
+                        ],
                         Expanded(
                           child: InkWell(
                             onTap: widget.onTap,
@@ -3587,8 +3628,10 @@ class NewsPage extends StatefulWidget {
       {super.key,
       required this.item,
       required this.onVote,
-      required this.onPollVote});
+      required this.onPollVote,
+      this.token = ''});
 
+  final String token;
   final NewsItem item;
   final Future<void> Function(NewsItem, int) onVote;
   final Future<void> Function(NewsItem, int) onPollVote;
@@ -3646,6 +3689,8 @@ class _NewsPageState extends State<NewsPage> {
           if (item.poll != null) PollView(poll: item.poll!, onVote: pollVote),
           const SizedBox(height: 20),
           VoteBar(item: item, onVote: vote),
+          const SizedBox(height: 24),
+          SxComments(token: widget.token, newsId: item.id),
         ],
       ),
     );
