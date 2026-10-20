@@ -927,7 +927,8 @@ class _EmailFlowState extends State<EmailFlow> {
     });
     try {
       final r = await apiCall('POST', widget.addMode ? '/api/app/email-change-start' : '/api/web/email-start',
-          token: widget.addMode ? widget.token : null, data: {'email': em});
+          token: widget.addMode ? widget.token : null,
+          data: {'email': em, if (widget.createMode) 'create': true});
       final st = r['_status'];
       if (!mounted) return;
       if (st == 200) {
@@ -943,7 +944,11 @@ class _EmailFlowState extends State<EmailFlow> {
         msg = st == 429
             ? 'Too many tries. Wait a little.'
             : st == 409
-                ? (r['error'] == 'email_taken' ? 'This e-mail is already used by another account.' : 'This is already your e-mail.')
+                ? (r['error'] == 'exists'
+                    ? 'This e-mail already has an account. Use Log in below instead.'
+                    : r['error'] == 'email_taken'
+                        ? 'This e-mail is already used by another account.'
+                        : 'This is already your e-mail.')
                 : st == 503
                     ? 'E-mail sign in is not ready yet.'
                     : 'Could not send the code. Try again later.';
