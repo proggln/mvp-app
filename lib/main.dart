@@ -1777,16 +1777,30 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
           refreshProfile();
           return;
         }
+        if (m.data['type'] == 'message') {
+          note(m.notification?.title ?? 'New message');
+          return;
+        }
         note(m.notification?.title ?? 'New news');
         load();
       });
       FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage m) {
         if (mounted && m.data['type'] == 'inbox') openInbox();
+        if (mounted && m.data['type'] == 'message') {
+          Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => FriendsPage(token: token)));
+        }
       });
       FirebaseMessaging.instance.onTokenRefresh.listen((t) => linkPushToken(fresh: t));
       final first = await FirebaseMessaging.instance.getInitialMessage();
       if (first != null && first.data['type'] == 'inbox') {
         WidgetsBinding.instance.addPostFrameCallback((_) => openInbox());
+      }
+      if (first != null && first.data['type'] == 'message') {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => FriendsPage(token: token)));
+          }
+        });
       }
       linkPushToken();
     } catch (e) {

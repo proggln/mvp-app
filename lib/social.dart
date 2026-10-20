@@ -614,8 +614,9 @@ class _ChatPageState extends State<ChatPage> {
         setState(() {
           online = r['online'] == true;
           for (final m in fresh) {
-            msgs.add(m);
             final id = (m['id'] as num?)?.toInt() ?? 0;
+            if (id > 0 && msgs.any((x) => x['id'] == id)) continue;
+            msgs.add(m);
             if (id > last) last = id;
           }
         });
@@ -640,8 +641,8 @@ class _ChatPageState extends State<ChatPage> {
       if (r['_status'] == 200 && r['item'] != null) {
         final m = _m(r['item']);
         setState(() {
-          msgs.add(m);
           final id = (m['id'] as num?)?.toInt() ?? 0;
+          if (id == 0 || !msgs.any((x) => x['id'] == id)) msgs.add(m);
           if (id > last) last = id;
           ctl.clear();
           sending = false;
