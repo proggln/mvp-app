@@ -615,6 +615,12 @@ class _ChatPageState extends State<ChatPage> {
         final fresh = _list(r['items']);
         setState(() {
           online = r['online'] == true;
+          final gone = (r['deleted'] is List)
+              ? (r['deleted'] as List).map((e) => (e as num).toInt()).toSet()
+              : <int>{};
+          if (gone.isNotEmpty) {
+            msgs.removeWhere((x) => gone.contains((x['id'] as num?)?.toInt() ?? -1));
+          }
           for (final m in fresh) {
             final id = (m['id'] as num?)?.toInt() ?? 0;
             if (id > 0 && msgs.any((x) => x['id'] == id)) continue;
@@ -627,6 +633,50 @@ class _ChatPageState extends State<ChatPage> {
       // try again on the next tick
     }
     busy = false;
+  }
+
+  String _fmtTime(dynamic v) {
+    final ms = (v as num?)?.toInt() ?? DateTime.now().millisecondsSinceEpoch;
+    final d = DateTime.fromMillisecondsSinceEpoch(ms);
+    final now = DateTime.now();
+    String two(int n) => n < 10 ? '0$n' : '$n';
+    final t = '${two(d.hour)}:${two(d.minute)}';
+    if (d.year == now.year && d.month == now.month && d.day == now.day) return t;
+    const mon = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return '${d.day} ${mon[d.month - 1]}, $t';
+  }
+
+  Future<void> _delete(Map<String, dynamic> m) async {
+    final id = (m['id'] as num?)?.toInt() ?? 0;
+    if (id <= 0) return;
+    try {
+      final r = await apiCall('POST', '/api/app/messages/delete',
+          token: widget.token, data: {'id': id});
+      if (!mounted) return;
+      if (r['_status'] == 200) {
+        setState(() => msgs.remove(m));
+      } else {
+        setState(() => error = 'Could not delete. Try again.');
+      }
+    } catch (_) {
+      if (mounted) setState(() => error = 'Cannot reach the server.');
+    }
+  }
+
+  void _zoom(String url) {
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => GestureDetector(
+        onTap: () => Navigator.of(ctx).pop(),
+        child: Container(
+          color: Colors.black87,
+          alignment: Alignment.center,
+          child: InteractiveViewer(
+            child: Image.network(url, headers: {'Authorization': 'Bearer ${widget.token}'}),
+          ),
+        ),
+      ),
+    );
   }
 
   Future<void> send() async {
@@ -725,27 +775,77 @@ class _ChatPageState extends State<ChatPage> {
                     itemBuilder: (ctx, i) {
                       final m = reversed[i];
                       final mine = m['mine'] == true;
+                      final imgId = (m['img'] as num?)?.toInt() ?? 0;
+                      final imgUrl = '$apiBase/api/app/chat-image?id=$imgId';
+                      final canDel = mine && ((m['id'] as num?)?.toInt() ?? 0) > 0;
                       return Align(
                         alignment: mine ? Alignment.centerRight : Alignment.centerLeft,
-                        child: Container(
-                          margin: const EdgeInsets.symmetric(vertical: 3),
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
-                          constraints: BoxConstraints(
-                              maxWidth: MediaQuery.of(context).size.width * 0.78),
-                          decoration: BoxDecoration(
-                            color: mine ? (m['pending'] == true ? accent.withAlpha(170) : accent) : tintGrey,
-                            borderRadius: BorderRadius.only(
-                              topLeft: const Radius.circular(16),
-                              topRight: const Radius.circular(16),
-                              bottomLeft: Radius.circular(mine ? 16 : 4),
-                              bottomRight: Radius.circular(mine ? 4 : 16),
+                        child: Column(
+                          crossAxisAlignment:
+                              mine ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+                          children: [
+                            Container(
+                              margin: const EdgeInsets.only(top: 3),
+                              padding: imgId > 0
+                                  ? const EdgeInsets.all(4)
+                                  : const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
+                              constraints: BoxConstraints(
+                                  maxWidth: MediaQuery.of(context).size.width * 0.78),
+                              decoration: BoxDecoration(
+                                color: mine ? (m['pending'] == true ? accent.withAlpha(170) : accent) : tintGrey,
+                                borderRadius: BorderRadius.only(
+                                  topLeft: const Radius.circular(16),
+                                  topRight: const Radius.circular(16),
+                                  bottomLeft: Radius.circular(mine ? 16 : 4),
+                                  bottomRight: Radius.circular(mine ? 4 : 16),
+                                ),
+                              ),
+                              child: imgId > 0
+                                  ? GestureDetector(
+                                      onTap: () => _zoom(imgUrl),
+                                      child: ClipRRect(
+                                        borderRadius: BorderRadius.circular(12),
+                                        child: ConstrainedBox(
+                                          constraints: const BoxConstraints(maxHeight: 280, minHeight: 80, minWidth: 80),
+                                          child: Image.network(imgUrl,
+                                              headers: {'Authorization': 'Bearer ${widget.token}'},
+                                              fit: BoxFit.cover,
+                                              errorBuilder: (c, e, st) => const SizedBox(
+                                                  width: 80, height: 80, child: Icon(Icons.image_not_supported_outlined))),
+                                        ),
+                                      ),
+                                    )
+                                  : Text((m['body'] ?? '').toString(),
+                                      style: TextStyle(
+                                          color: mine ? Colors.white : inkColor,
+                                          fontSize: 17,
+                                          height: 1.35)),
                             ),
-                          ),
-                          child: Text((m['body'] ?? '').toString(),
-                              style: TextStyle(
-                                  color: mine ? Colors.white : inkColor,
-                                  fontSize: 17,
-                                  height: 1.35)),
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(_fmtTime(m['at']),
+                                    style: TextStyle(fontSize: 11, color: mutedColor)),
+                                if (canDel)
+                                  PopupMenuButton<String>(
+                                    padding: EdgeInsets.zero,
+                                    iconSize: 18,
+                                    icon: Icon(Icons.more_horiz, color: mutedColor, size: 18),
+                                    tooltip: 'Message options',
+                                    onSelected: (v) {
+                                      if (v == 'delete') _delete(m);
+                                    },
+                                    itemBuilder: (ctx) => const [
+                                      PopupMenuItem<String>(
+                                          value: 'delete',
+                                          child: Text('Delete', style: TextStyle(color: Color(0xFFE8424F)))),
+                                    ],
+                                  )
+                                else
+                                  const SizedBox(height: 28),
+                              ],
+                            ),
+                          ],
                         ),
                       );
                     },
