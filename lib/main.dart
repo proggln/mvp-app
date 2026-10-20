@@ -1949,6 +1949,13 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
       return;
     }
     final c = TextEditingController();
+    // if the code was copied on the site, it is filled in already
+    try {
+      final clip = await Clipboard.getData(Clipboard.kTextPlain);
+      final t = (clip?.text ?? '').trim().toUpperCase();
+      if (RegExp(r'^[A-Z0-9]{6}$').hasMatch(t)) c.text = t;
+    } catch (_) {}
+    if (!mounted) return;
     final code = await showDialog<String>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -1956,8 +1963,7 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text(
-                'Open the MVP website, tap Sign in and enter the 6-character code you see there.'),
+            const Text('Type the code from the site.'),
             const SizedBox(height: 12),
             TextField(
               controller: c,
@@ -1965,6 +1971,9 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
               textCapitalization: TextCapitalization.characters,
               maxLength: 6,
               decoration: const InputDecoration(hintText: 'CODE'),
+              onChanged: (v) {
+                if (v.trim().length == 6) Navigator.of(ctx).pop(v.trim());
+              },
             ),
           ],
         ),
