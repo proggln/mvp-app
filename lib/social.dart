@@ -405,8 +405,17 @@ class _SxCommentsState extends State<SxComments> {
                   children: [
                     GestureDetector(
                       onTap: () => openProfile(context, widget.token, nick),
-                      child: Text(nick,
-                          style: TextStyle(fontWeight: FontWeight.w800, color: inkColor)),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(nick,
+                              style: TextStyle(fontWeight: FontWeight.w800, color: inkColor)),
+                          if (c['verified'] == true) ...[
+                            const SizedBox(width: 4),
+                            const VerifiedBadge(size: 14),
+                          ],
+                        ],
+                      ),
                     ),
                     if (rank.isNotEmpty)
                       Container(
@@ -914,7 +923,7 @@ class _FriendsPageState extends State<FriendsPage> {
       );
 
   Widget _row(String nick,
-      {String? sub, bool? online, int unread = 0, List<Widget> actions = const [], VoidCallback? onTap}) {
+      {String? sub, bool? online, bool verified = false, int unread = 0, List<Widget> actions = const [], VoidCallback? onTap}) {
     return InkWell(
       onTap: onTap,
       child: Padding(
@@ -927,10 +936,20 @@ class _FriendsPageState extends State<FriendsPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(nick,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(fontWeight: FontWeight.w700, color: inkColor)),
+                  Row(
+                    children: [
+                      Flexible(
+                        child: Text(nick,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(fontWeight: FontWeight.w700, color: inkColor)),
+                      ),
+                      if (verified) ...[
+                        const SizedBox(width: 4),
+                        const VerifiedBadge(size: 14),
+                      ],
+                    ],
+                  ),
                   if (sub != null)
                     Row(
                       children: [
@@ -1046,6 +1065,7 @@ class _FriendsPageState extends State<FriendsPage> {
                           for (final f in incoming)
                             _row(
                               (f['nick'] ?? '').toString(),
+                              verified: f['verified'] == true,
                               sub: 'Wants to be your friend',
                               onTap: () => openProfile(context, widget.token, (f['nick'] ?? '').toString()),
                               actions: [
@@ -1067,6 +1087,7 @@ class _FriendsPageState extends State<FriendsPage> {
                           for (final f in friends)
                             _row(
                               (f['nick'] ?? '').toString(),
+                              verified: f['verified'] == true,
                               online: f['online'] == true,
                               sub: f['online'] == true
                                   ? '${f['rank'] ?? ''} · Online now'
@@ -1116,6 +1137,7 @@ class _FriendsPageState extends State<FriendsPage> {
                         _group([
                           for (final f in suggestions)
                             _row((f['nick'] ?? '').toString(),
+                                verified: f['verified'] == true,
                                 sub: ((f['rank'] ?? '').toString().isEmpty ? 'Member' : f['rank'].toString()) +
                                     (((f['mutual'] as num?)?.toInt() ?? 0) > 0
                                         ? ' · ${f['mutual']} mutual friend${f['mutual'] == 1 ? '' : 's'}'
@@ -1332,11 +1354,21 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
                     children: [
                       const Text('PLAYER',
                           style: TextStyle(color: Color(0xCCFFFFFF), fontSize: 10, letterSpacing: 2)),
-                      Text((p['nick'] ?? '').toString().toUpperCase(),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                              color: Colors.white, fontSize: 18, fontWeight: FontWeight.w800)),
+                      Row(
+                        children: [
+                          Flexible(
+                            child: Text((p['nick'] ?? '').toString().toUpperCase(),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                    color: Colors.white, fontSize: 18, fontWeight: FontWeight.w800)),
+                          ),
+                          if (p['verified'] == true) ...[
+                            const SizedBox(width: 5),
+                            const VerifiedBadge(size: 16),
+                          ],
+                        ],
+                      ),
                     ],
                   ),
                 ),
