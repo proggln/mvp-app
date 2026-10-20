@@ -1162,6 +1162,7 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
   List<Medal> medals = <Medal>[];
   int deleteAt = 0;
   int inboxUnread = 0;
+  bool verified = false;
   String email = '';
   String displayName = '';
   bool creating = false;
@@ -1576,6 +1577,7 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
               .toList();
           deleteAt = (me['delete_at'] as num?)?.toInt() ?? 0;
           inboxUnread = (me['inbox_unread'] as num?)?.toInt() ?? 0;
+          verified = me['verified'] == true;
           medals = ((me['medals'] as List<dynamic>?) ?? <dynamic>[])
               .whereType<Map<String, dynamic>>()
               .map(Medal.fromJson)
@@ -2237,6 +2239,7 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
             colors: cardColors,
             animated: cardAnimated,
             avatarNick: linked ? nick : '',
+            verified: verified,
             onTap: linked ? null : openRegister,
           ),
           const SizedBox(height: 18),
@@ -2979,8 +2982,10 @@ class MemberCard extends StatefulWidget {
     this.colors = const [accentLight, accent, accentDark],
     this.animated = false,
     this.avatarNick = '',
+    this.verified = false,
   });
 
+  final bool verified;
   final String avatarNick;
   final bool animated;
   final List<Color> colors;
@@ -3179,15 +3184,25 @@ class _MemberCardState extends State<MemberCard>
                                     letterSpacing: 2,
                                   ),
                                 ),
-                                Text(
-                                  nick,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.w600,
-                                    fontSize: 16,
-                                  ),
+                                Row(
+                                  children: [
+                                    Flexible(
+                                      child: Text(
+                                        nick,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.w600,
+                                          fontSize: 16,
+                                        ),
+                                      ),
+                                    ),
+                                    if (widget.verified) ...[
+                                      const SizedBox(width: 5),
+                                      const VerifiedBadge(size: 18),
+                                    ],
+                                  ],
                                 ),
                               ],
                             ),
