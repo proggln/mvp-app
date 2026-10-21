@@ -16,6 +16,7 @@ import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'firebase_options.dart';
+import 'qr.dart';
 import 'social.dart';
 
 const String apiBase = 'https://mvp-news-api.mvp-shop.workers.dev';
@@ -3400,6 +3401,15 @@ class _MemberCardState extends State<MemberCard>
                   ],
                 ),
                 ),
+                if (widget.avatarNick.isNotEmpty)
+                  Positioned(
+                    right: 22,
+                    top: 66,
+                    child: QrPlate(
+                      data: 'https://playmvp.org/u/?n=${Uri.encodeComponent(widget.avatarNick)}',
+                      size: 78,
+                    ),
+                  ),
               ],
             ),
           ),
