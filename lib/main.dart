@@ -1324,7 +1324,7 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
               ListTile(
                 title: Text(o[1] as String, style: TextStyle(color: inkColor)),
                 trailing: themeMode.value == o[2]
-                    ? const Icon(Icons.check_circle_rounded, color: accent)
+                    ? const PxIcon('on', 24)
                     : null,
                 onTap: () {
                   themeMode.value = o[2] as ThemeMode;
@@ -2392,7 +2392,7 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
               const SizedBox(width: 10),
               Expanded(
                 child: StatTile(
-                  icon: Icons.heart_broken_rounded,
+                  asset: 'assets/ic_skull.png',
                   tint: tintBlue,
                   color: accent,
                   value: '$deaths',
@@ -2406,7 +2406,7 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
           _medalsButton(),
           if (linked) ...[
             const SizedBox(height: 12),
-            _socialTile(Icons.people_alt_rounded, 'Friends', 'Chat and add friends',
+            _socialTile('people', 'Friends', 'Chat and add friends',
                 () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => FriendsPage(token: token)))),
             const SizedBox(height: 12),
             _socialTile(Icons.badge_rounded, 'See my profile', 'How others see you',
@@ -2454,8 +2454,7 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
                 ),
                 const SizedBox(width: 10),
                 if (linked)
-                  const Icon(Icons.check_circle_rounded,
-                      color: Color(0xFF2E9E5B), size: 30)
+                  const PxIcon('on', 30)
                 else if (pendingNick.isNotEmpty)
                   const Icon(Icons.hourglass_top_rounded, color: accent, size: 28)
                 else
@@ -2646,7 +2645,7 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
         const SizedBox(height: 14),
         _linkTile(Icons.forum_rounded, 'Discord', 'Chat with the community',
             discordUrl),
-        _linkTile(Icons.shopping_bag_rounded, 'Store',
+        _linkTile('cart', 'Store',
             'Ranks, keys and coins', storeUrl),
         _linkTile(Icons.public_rounded, 'Website', 'News, rules and wiki',
             siteUrl),
@@ -2654,7 +2653,7 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
     );
   }
 
-  Widget _linkTile(IconData icon, String title, String sub, String url) {
+  Widget _linkTile(Object icon, String title, String sub, String url) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
       child: Material(
@@ -2676,7 +2675,7 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
                     color: tintBlue,
                     borderRadius: BorderRadius.circular(14),
                   ),
-                  child: Icon(icon, color: accent),
+                  child: icon is String ? Center(child: PxIcon(icon, 28)) : Icon(icon as IconData, color: accent),
                 ),
                 const SizedBox(width: 14),
                 Expanded(
@@ -2797,7 +2796,7 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
   }
 
   // "Medals" button on the card screen: opens a sheet with all medals of the player
-  Widget _socialTile(IconData icon, String title, String sub, VoidCallback onTap) {
+  Widget _socialTile(Object icon, String title, String sub, VoidCallback onTap) {
     return InkWell(
       borderRadius: BorderRadius.circular(20),
       onTap: onTap,
@@ -2811,7 +2810,7 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
               width: 40,
               height: 40,
               decoration: BoxDecoration(color: tintBlue, borderRadius: BorderRadius.circular(12)),
-              child: Icon(icon, color: accent),
+              child: icon is String ? Center(child: PxIcon(icon, 26)) : Icon(icon as IconData, color: accent),
             ),
             const SizedBox(width: 14),
             Expanded(
@@ -2929,7 +2928,7 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
           padding: EdgeInsets.all(16),
           child: Row(
             children: [
-              Icon(Icons.storefront_rounded, color: accent, size: 30),
+              PxIcon('cart', 32),
               SizedBox(width: 14),
               Expanded(
                 child: Column(
@@ -2975,11 +2974,11 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
           child: Column(
             children: [
               ListTile(
-                leading: const Icon(Icons.mail_rounded, color: accent),
+                leading: const PxIcon('mail', 26),
                 title: const Text('E-mail'),
                 subtitle: Text(email.isNotEmpty ? email : 'No e-mail yet. Tap to add one.'),
                 trailing: email.isNotEmpty
-                    ? const Icon(Icons.check_circle_rounded, color: Color(0xFF2E9E5B))
+                    ? const PxIcon('on', 24)
                     : const Icon(Icons.chevron_right_rounded),
                 onTap: email.isNotEmpty ? null : addEmail,
               ),
@@ -2993,15 +2992,14 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
                         ? 'Waiting for registration (wait some time)'
                         : 'Not registered. Tap to choose a nickname.')),
                 trailing: linked
-                    ? const Icon(Icons.check_circle_rounded,
-                        color: Color(0xFF2E9E5B))
+                    ? const PxIcon('on', 24)
                     : const Icon(Icons.chevron_right_rounded),
                 onTap: linked ? null : openRegister,
               ),
               const Divider(height: 1),
               if (linked) ...[
                 ListTile(
-                  leading: const Icon(Icons.visibility_rounded, color: accent),
+                  leading: const PxIcon('show', 26),
                   title: const Text('Privacy'),
                   subtitle: const Text('Online status, coins, suggestions'),
                   trailing: const Icon(Icons.chevron_right_rounded),
@@ -3782,7 +3780,7 @@ class VoteBar extends StatelessWidget {
           ),
         ),
         const Spacer(),
-        Icon(Icons.visibility_outlined, size: 20, color: mutedColor),
+        const PxIcon('show', 20),
         const SizedBox(width: 6),
         Text('${item.views}',
             style: TextStyle(
@@ -4129,8 +4127,7 @@ class PollView extends StatelessWidget {
                               if (poll.my == o.id)
                                 const Padding(
                                   padding: EdgeInsets.only(right: 6),
-                                  child: Icon(Icons.check_circle_rounded,
-                                      color: accent, size: 18),
+                                  child: PxIcon('on', 18),
                                 ),
                               Expanded(
                                 child: Text(o.text,
@@ -4343,4 +4340,19 @@ class PixelShine extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant PixelShine old) => old.spark != spark;
+}
+
+// Pixel icon from the MVP resource pack (assets/ic_<name>.png). Crisp, never smoothed.
+class PxIcon extends StatelessWidget {
+  const PxIcon(this.name, this.size, {super.key, this.opacity = 1});
+  final String name;
+  final double size;
+  final double opacity;
+
+  @override
+  Widget build(BuildContext context) {
+    final img = Image.asset('assets/ic_$name.png',
+        width: size, height: size, filterQuality: FilterQuality.none, isAntiAlias: false);
+    return opacity >= 1 ? img : Opacity(opacity: opacity, child: img);
+  }
 }

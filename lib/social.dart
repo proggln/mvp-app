@@ -364,8 +364,8 @@ class _SxCommentsState extends State<SxComments> {
     );
   }
 
-  Widget _actionIcon(IconData icon, Color color, VoidCallback onTap,
-      {String? label, String? tip}) {
+  Widget _actionIcon(Object icon, Color color, VoidCallback onTap,
+      {String? label, String? tip, double px = 1}) {
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(8),
@@ -374,7 +374,7 @@ class _SxCommentsState extends State<SxComments> {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 18, color: color),
+            if (icon is String) PxIcon(icon, 20, opacity: px) else Icon(icon as IconData, size: 18, color: color),
             if (label != null && label.isNotEmpty) ...[
               const SizedBox(width: 5),
               Text(label, style: TextStyle(color: color, fontSize: 13)),
@@ -444,9 +444,10 @@ class _SxCommentsState extends State<SxComments> {
                 Row(
                   children: [
                     _actionIcon(
-                      liked ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+                      'heart',
                       liked ? const Color(0xFFE8424F) : mutedColor,
                       () => like(c),
+                      px: liked ? 1 : 0.4,
                       label: likes > 0 ? '$likes' : null,
                     ),
                     const SizedBox(width: 10),
@@ -462,7 +463,7 @@ class _SxCommentsState extends State<SxComments> {
                       _actionIcon(Icons.delete_outline_rounded, mutedColor, () => remove(c),
                           label: 'Delete'),
                     const Spacer(),
-                    _actionIcon(Icons.flag_rounded, _red, () => report(c)),
+                    _actionIcon('warning', _red, () => report(c)),
                   ],
                 ),
                 if (replyTo != null && replyTo == (c['id'] as num?)?.toInt() && canComment)
