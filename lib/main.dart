@@ -3772,7 +3772,7 @@ class VoteBar extends StatelessWidget {
               constraints: const BoxConstraints(minHeight: 44, minWidth: 44),
               padding: const EdgeInsets.symmetric(horizontal: 12),
               decoration: BoxDecoration(color: tintGrey, borderRadius: BorderRadius.circular(999)),
-              child: Icon(Icons.share_outlined, size: 20, color: mutedColor),
+              child: const PxIcon('share', 22),
             ),
           ),
         ),
