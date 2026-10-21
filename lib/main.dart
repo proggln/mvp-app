@@ -4348,8 +4348,12 @@ class PxIcon extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // the pictures are 16x16: show them at whole multiples of their size on the real screen so no pixel is uneven
+    final dpr = MediaQuery.of(context).devicePixelRatio;
+    final k = ((size * dpr) / 16).round().clamp(1, 12);
+    final s = 16.0 * k / dpr;
     final img = Image.asset('assets/ic_$name.png',
-        width: size, height: size, filterQuality: FilterQuality.none, isAntiAlias: false);
+        width: s, height: s, filterQuality: FilterQuality.none, isAntiAlias: false);
     return opacity >= 1 ? img : Opacity(opacity: opacity, child: img);
   }
 }
