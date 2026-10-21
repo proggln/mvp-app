@@ -463,7 +463,7 @@ class _SxCommentsState extends State<SxComments> {
                       _actionIcon(Icons.delete_outline_rounded, mutedColor, () => remove(c),
                           label: 'Delete'),
                     const Spacer(),
-                    _actionIcon('warning', _red, () => report(c)),
+                    _actionIcon(Icons.flag_rounded, _red, () => report(c)),
                   ],
                 ),
                 if (replyTo != null && replyTo == (c['id'] as num?)?.toInt() && canComment)

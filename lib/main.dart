@@ -3723,8 +3723,7 @@ class VoteBar extends StatelessWidget {
   final NewsItem item;
   final Future<void> Function(NewsItem, int) onVote;
 
-  Widget btn(IconData icon, IconData iconOn, int count, bool on, int v,
-      String label) {
+  Widget btn(String px, int count, bool on, int v, String label) {
     return Semantics(
       label: label,
       button: true,
@@ -3742,7 +3741,7 @@ class VoteBar extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(on ? iconOn : icon, size: 20, color: on ? accent : mutedColor),
+              PxIcon(px, 22, opacity: on ? 1 : 0.55),
               const SizedBox(width: 6),
               Text('$count',
                   style: TextStyle(
@@ -3759,11 +3758,9 @@ class VoteBar extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        btn(Icons.thumb_up_outlined, Icons.thumb_up, item.likes, item.my == 1,
-            1, 'Like'),
+        btn('on', item.likes, item.my == 1, 1, 'Like'),
         const SizedBox(width: 10),
-        btn(Icons.thumb_down_outlined, Icons.thumb_down, item.dislikes,
-            item.my == -1, -1, 'Dislike'),
+        btn('off', item.dislikes, item.my == -1, -1, 'Dislike'),
         const SizedBox(width: 10),
         Semantics(
           label: 'Share',
