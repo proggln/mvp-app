@@ -61,7 +61,7 @@ class QrData {
 
   static List<int> _rsEc(List<int> data, int n) {
     final g = _rsGen(n);
-    final res = List<int>.filled(n, 0);
+    final res = List<int>.filled(n, 0, growable: true);
     for (final d in data) {
       final f = d ^ res[0];
       res.removeAt(0);
