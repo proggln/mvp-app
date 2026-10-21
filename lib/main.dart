@@ -212,8 +212,11 @@ class Poll {
 }
 
 class CardStyle {
-  CardStyle({required this.id, required this.name, required this.colors, this.anim = false});
+  CardStyle({required this.id, required this.name, required this.colors, this.anim = false, this.tex = '', this.spark = const Color(0xFFBBFFFF), this.shade = 0});
   final bool anim;
+  final String tex;
+  final Color spark;
+  final double shade;
   final String id;
   final String name;
   final List<Color> colors;
@@ -222,6 +225,9 @@ class CardStyle {
         id: (j['id'] ?? 'default').toString(),
         name: (j['name'] ?? '').toString(),
         anim: j['anim'] == true,
+        tex: (j['tex'] ?? '').toString(),
+        spark: Color(int.tryParse('FF${(j['spark'] ?? '#bbffff').toString().replaceAll('#', '')}', radix: 16) ?? 0xFFBBFFFF),
+        shade: (j['shade'] as num?)?.toDouble() ?? 0,
         colors: ((j['colors'] as List<dynamic>?) ?? <dynamic>[])
             .map((c) => Color(
                 int.tryParse('FF${c.toString().replaceAll('#', '')}',
@@ -1930,6 +1936,13 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
     return const [accentLight, accent, accentDark];
   }
 
+  CardStyle? get cardTex {
+    for (final t in themes) {
+      if (t.id == themeId && t.tex.isNotEmpty) return t;
+    }
+    return null;
+  }
+
   bool get cardAnimated {
     for (final t in themes) {
       if (t.id == themeId) return t.anim;
@@ -2098,7 +2111,15 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
                             height: 52,
                             decoration: BoxDecoration(
                               borderRadius: BorderRadius.circular(14),
-                              gradient: LinearGradient(
+                              image: t.tex.isEmpty
+                                  ? null
+                                  : DecorationImage(
+                                      image: AssetImage('assets/tex_${t.tex}.png'),
+                                      repeat: ImageRepeat.repeat,
+                                      scale: 1.0,
+                                      filterQuality: FilterQuality.none,
+                                    ),
+                              gradient: t.tex.isNotEmpty ? null : LinearGradient(
                                 colors: t.colors.length >= 3
                                     ? t.colors
                                     : const [accentLight, accent, accentDark],
@@ -2337,6 +2358,7 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
             rank: rank,
             colors: cardColors,
             animated: cardAnimated,
+            style: cardTex,
             avatarNick: linked ? nick : '',
             verified: verified,
             onTap: linked ? null : openRegister,
@@ -3091,10 +3113,12 @@ class MemberCard extends StatefulWidget {
     required this.onTap,
     this.colors = const [accentLight, accent, accentDark],
     this.animated = false,
+    this.style,
     this.avatarNick = '',
     this.verified = false,
   });
 
+  final CardStyle? style;
   final bool verified;
   final String avatarNick;
   final bool animated;
@@ -3160,7 +3184,21 @@ class _MemberCardState extends State<MemberCard>
           height: 216,
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(26),
-            gradient: widget.animated
+            image: widget.style == null
+                ? null
+                : DecorationImage(
+                    image: AssetImage('assets/tex_${widget.style!.tex}.png'),
+                    repeat: ImageRepeat.repeat,
+                    scale: 0.25,
+                    alignment: Alignment.topLeft,
+                    filterQuality: FilterQuality.none,
+                    colorFilter: widget.style!.shade > 0
+                        ? ColorFilter.mode(Color.fromARGB((widget.style!.shade * 255).round(), 0, 0, 0), BlendMode.srcOver)
+                        : null,
+                  ),
+            gradient: widget.style != null
+                ? null
+                : widget.animated
                 ? LinearGradient(
                     colors: [
                       widget.colors[0],
@@ -3193,6 +3231,12 @@ class _MemberCardState extends State<MemberCard>
             child: Stack(
               clipBehavior: Clip.none,
               children: [
+                if (widget.style != null)
+                  Positioned.fill(
+                    child: IgnorePointer(
+                      child: CustomPaint(painter: _PixelShine(_anim, widget.style!.spark)),
+                    ),
+                  ),
                 Positioned(
                   right: -72,
                   bottom: -92,
@@ -4246,4 +4290,57 @@ class _UpdateDialogState extends State<UpdateDialog> {
       ],
     );
   }
+}
+
+// Pixel shine for textured cards: a soft light band that sweeps over the card and small twinkling crosses.
+class _PixelShine extends CustomPainter {
+  _PixelShine(this.t, this.spark) : super(repaint: t);
+  final Animation<double> t;
+  final Color spark;
+  static const List<List<double>> _pts = [
+    [0.10, 0.18, 0.0], [0.28, 0.72, 0.31], [0.47, 0.30, 0.62], [0.63, 0.80, 0.12],
+    [0.78, 0.22, 0.45], [0.90, 0.60, 0.77], [0.38, 0.55, 0.90], [0.70, 0.45, 0.20], [0.20, 0.40, 0.55],
+  ];
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    // sweep: one pass every 4.5 s
+    final p = (t.value * 2) % 1.0;
+    final prog = (p / 0.6).clamp(0.0, 1.0);
+    final bandW = size.width * 0.34;
+    final x = -bandW * 1.4 + (size.width + bandW * 2.8) * prog;
+    final skew = size.height * 0.4;
+    final path = Path()
+      ..moveTo(x + skew, 0)
+      ..lineTo(x + skew + bandW, 0)
+      ..lineTo(x + bandW, size.height)
+      ..lineTo(x, size.height)
+      ..close();
+    final paint = Paint()
+      ..shader = LinearGradient(colors: [
+        const Color(0x00FFFFFF),
+        const Color(0x38FFFFFF),
+        const Color(0x00FFFFFF),
+      ]).createShader(Rect.fromLTWH(x, 0, bandW + skew, size.height));
+    canvas.drawPath(path, paint);
+    // sparkles: stepped (no smooth fade) so they look like pixels
+    final px = Paint()..isAntiAlias = false;
+    for (final s in _pts) {
+      final ph = ((t.value * 9 / 2.4) + s[2]) % 1.0;
+      if (ph < 0.6 || ph > 0.9) continue;
+      final big = ph > 0.68 && ph < 0.82;
+      final u = big ? 4.0 : 2.0;
+      final cx = (size.width * s[0] / u).floorToDouble() * u;
+      final cy = (size.height * s[1] / u).floorToDouble() * u;
+      px.color = spark.withAlpha(200);
+      for (final d in const [Offset(-1, 0), Offset(1, 0), Offset(0, -1), Offset(0, 1)]) {
+        canvas.drawRect(Rect.fromLTWH(cx + d.dx * u, cy + d.dy * u, u, u), px);
+      }
+      px.color = Colors.white;
+      canvas.drawRect(Rect.fromLTWH(cx, cy, u, u), px);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _PixelShine old) => old.spark != spark;
 }
