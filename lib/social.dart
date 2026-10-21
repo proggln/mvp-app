@@ -1,8 +1,11 @@
 // Social features of the MVP app: skin avatars, comments, friends, chat and profiles.
 // They talk to the same API as the website.
 import 'dart:async';
+import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 
 import 'main.dart';
 
@@ -681,19 +684,91 @@ class _ChatPageState extends State<ChatPage> {
     );
   }
 
-  Future<void> send() async {
-    final t = ctl.text.trim();
-    if (t.isEmpty) return;
+  Future<void> pickPhoto() async {
+    try {
+      final x = await ImagePicker().pickImage(
+          source: ImageSource.gallery, maxWidth: 1200, maxHeight: 1200, imageQuality: 75);
+      if (x == null) return;
+      final bytes = await x.readAsBytes();
+      String mime = 'jpeg';
+      if (bytes.length > 4 && bytes[0] == 0x89) mime = 'png';
+      if (bytes.length > 4 && bytes[0] == 0x52) mime = 'webp';
+      final url = 'data:image/$mime;base64,${base64Encode(bytes)}';
+      if (url.length > 640000) {
+        if (mounted) setState(() => error = 'This photo is too big. Choose a smaller one.');
+        return;
+      }
+      await send(image: url, local: bytes);
+    } catch (_) {
+      if (mounted) setState(() => error = 'Could not open the photo.');
+    }
+  }
+
+  void openAttach() {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: bgColor,
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(22))),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(18, 16, 18, 18),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: const Icon(Icons.photo_outlined),
+                title: const Text('Photo'),
+                onTap: () {
+                  Navigator.of(ctx).pop();
+                  pickPhoto();
+                },
+              ),
+              const SizedBox(height: 6),
+              Text('Stickers', style: TextStyle(color: mutedColor, fontWeight: FontWeight.w700)),
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  for (final n in const ['approved', 'pending', 'denied'])
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: () {
+                          Navigator.of(ctx).pop();
+                          send(text: ':$n:');
+                        },
+                        child: Padding(
+                          padding: const EdgeInsets.all(6),
+                          child: Image.asset('assets/sticker_$n.png', height: 84),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> send({String? text, String? image, Uint8List? local}) async {
+    final t = (text ?? ctl.text).trim();
+    if (t.isEmpty && image == null) return;
+    final fromBox = text == null && image == null;
     // show the message at once; the server answer only replaces it
-    final tmp = <String, dynamic>{'id': 0, 'mine': true, 'body': t, 'pending': true};
+    final tmp = <String, dynamic>{'id': 0, 'mine': true, 'body': t, 'pending': true, 'local': local};
     setState(() {
       error = '';
       msgs.add(tmp);
-      ctl.clear();
+      if (fromBox) ctl.clear();
     });
     try {
+      final data = <String, dynamic>{'nick': widget.nick, 'body': t};
+      if (image != null) data['image'] = image;
       final r = await apiCall('POST', '/api/app/messages/send',
-          token: widget.token, data: {'nick': widget.nick, 'body': t});
+          token: widget.token, data: data);
       if (!mounted) return;
       if (r['_status'] == 200 && r['item'] != null) {
         final m = _m(r['item']);
@@ -715,7 +790,7 @@ class _ChatPageState extends State<ChatPage> {
       } else {
         setState(() {
           msgs.remove(tmp);
-          ctl.text = t;
+          if (fromBox) ctl.text = t;
           error = _errs[(r['error'] ?? '').toString()] ?? 'Could not send. Try again.';
         });
       }
@@ -723,7 +798,7 @@ class _ChatPageState extends State<ChatPage> {
       if (mounted) {
         setState(() {
           msgs.remove(tmp);
-          ctl.text = t;
+          if (fromBox) ctl.text = t;
           error = 'Cannot reach the server.';
         });
       }
@@ -778,6 +853,9 @@ class _ChatPageState extends State<ChatPage> {
                       final m = reversed[i];
                       final mine = m['mine'] == true;
                       final imgId = (m['img'] as num?)?.toInt() ?? 0;
+                      final localImg = m['local'] is Uint8List ? m['local'] as Uint8List : null;
+                      final hasImg = imgId > 0 || localImg != null;
+                      final stk = RegExp(r'^:(approved|pending|denied):$').firstMatch((m['body'] ?? '').toString());
                       final imgUrl = '$apiBase/api/app/chat-image?id=$imgId';
                       final canDel = mine && ((m['id'] as num?)?.toInt() ?? 0) > 0;
                       // show the time only on the last message of a run (same sender, same minute)
@@ -796,12 +874,14 @@ class _ChatPageState extends State<ChatPage> {
                           children: [
                             Container(
                               margin: const EdgeInsets.only(top: 3),
-                              padding: imgId > 0
+                              padding: stk != null
+                                  ? EdgeInsets.zero
+                                  : hasImg
                                   ? const EdgeInsets.all(4)
                                   : const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
                               constraints: BoxConstraints(
                                   maxWidth: MediaQuery.of(context).size.width * 0.78),
-                              decoration: BoxDecoration(
+                              decoration: stk != null ? null : BoxDecoration(
                                 color: mine ? (m['pending'] == true ? accent.withAlpha(170) : accent) : tintGrey,
                                 borderRadius: BorderRadius.only(
                                   topLeft: const Radius.circular(16),
@@ -810,14 +890,18 @@ class _ChatPageState extends State<ChatPage> {
                                   bottomRight: Radius.circular(mine ? 4 : 16),
                                 ),
                               ),
-                              child: imgId > 0
+                              child: stk != null
+                                  ? Image.asset('assets/sticker_${stk.group(1)}.png', height: 110)
+                                  : hasImg
                                   ? GestureDetector(
-                                      onTap: () => _zoom(imgUrl),
+                                      onTap: () { if (imgId > 0) _zoom(imgUrl); },
                                       child: ClipRRect(
                                         borderRadius: BorderRadius.circular(12),
                                         child: ConstrainedBox(
                                           constraints: const BoxConstraints(maxHeight: 280, minHeight: 80, minWidth: 80),
-                                          child: Image.network(imgUrl,
+                                          child: localImg != null && imgId == 0
+                                              ? Image.memory(localImg, fit: BoxFit.cover)
+                                              : Image.network(imgUrl,
                                               headers: {'Authorization': 'Bearer ${widget.token}'},
                                               fit: BoxFit.cover,
                                               errorBuilder: (c, e, st) => const SizedBox(
@@ -876,6 +960,11 @@ class _ChatPageState extends State<ChatPage> {
               padding: const EdgeInsets.fromLTRB(12, 6, 8, 10),
               child: Row(
                 children: [
+                  IconButton(
+                    onPressed: openAttach,
+                    tooltip: 'Photo and stickers',
+                    icon: Icon(Icons.add_photo_alternate_outlined, color: mutedColor),
+                  ),
                   Expanded(
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 14),
