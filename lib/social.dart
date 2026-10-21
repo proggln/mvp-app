@@ -460,7 +460,7 @@ class _SxCommentsState extends State<SxComments> {
                       }, label: 'Reply'),
                     const SizedBox(width: 10),
                     if (c['mine'] == true || isAdmin)
-                      _actionIcon(Icons.delete_outline_rounded, mutedColor, () => remove(c),
+                      _actionIcon('trash', mutedColor, () => remove(c),
                           label: 'Delete'),
                     const Spacer(),
                     _actionIcon(Icons.flag_rounded, _red, () => report(c)),
