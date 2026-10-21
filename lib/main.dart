@@ -212,7 +212,8 @@ class Poll {
 }
 
 class CardStyle {
-  CardStyle({required this.id, required this.name, required this.colors, this.anim = false, this.tex = '', this.spark = const Color(0xFFBBFFFF), this.shade = 0});
+  CardStyle({required this.id, required this.name, required this.colors, this.anim = false, this.tex = '', this.spark = const Color(0xFFBBFFFF), this.shade = 0, this.rarity = 1});
+  final int rarity;
   final bool anim;
   final String tex;
   final Color spark;
@@ -228,6 +229,7 @@ class CardStyle {
         tex: (j['tex'] ?? '').toString(),
         spark: Color(int.tryParse('FF${(j['spark'] ?? '#bbffff').toString().replaceAll('#', '')}', radix: 16) ?? 0xFFBBFFFF),
         shade: (j['shade'] as num?)?.toDouble() ?? 0,
+        rarity: ((j['rarity'] as num?)?.toInt() ?? 1).clamp(1, 5),
         colors: ((j['colors'] as List<dynamic>?) ?? <dynamic>[])
             .map((c) => Color(
                 int.tryParse('FF${c.toString().replaceAll('#', '')}',
@@ -2099,7 +2101,18 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
                 runSpacing: 14,
                 children: [
                   for (final t in themes)
-                    GestureDetector(
+                    Tooltip(
+                      triggerMode: TooltipTriggerMode.longPress,
+                      showDuration: const Duration(milliseconds: 1800),
+                      richMessage: TextSpan(children: [
+                        TextSpan(text: '${t.name}  '),
+                        TextSpan(
+                            text: const ['', 'Common', 'Uncommon', 'Rare', 'Epic', 'Legendary'][t.rarity],
+                            style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: const [Color(0xFFFFFFFF), Color(0xFF9FB3C8), Color(0xFF58D68D), Color(0xFF4AA8FF), Color(0xFFB476FF), Color(0xFFFFB02E)][t.rarity])),
+                      ]),
+                      child: GestureDetector(
                       onTap: () {
                         Navigator.of(ctx).pop();
                         setTheme(t);
@@ -2140,7 +2153,7 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
                                   fontSize: 12, color: inkColor)),
                         ],
                       ),
-                    ),
+                    )),
                 ],
               ),
             ],
