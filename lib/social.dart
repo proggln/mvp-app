@@ -495,7 +495,7 @@ class _SxCommentsState extends State<SxComments> {
       children: [
         Row(
           children: [
-            Icon(Icons.chat_bubble_outline_rounded, color: accent, size: 20),
+            const PxIcon('comments', 24),
             const SizedBox(width: 8),
             Text(items.isEmpty ? 'Comments' : 'Comments (${items.length})',
                 style: TextStyle(
