@@ -1779,21 +1779,21 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
   Widget _rating(Map<String, dynamic> p) {
     final self = (p['relation'] ?? '') == 'self';
     final my = (p['my_vote'] as num?)?.toInt() ?? 0;
-    Widget btn(IconData icon, int n, bool on, Color color, VoidCallback? tap) => OutlinedButton.icon(
+    Widget btn(Widget icon, int n, bool on, Color color, VoidCallback? tap) => OutlinedButton.icon(
           onPressed: tap,
           style: OutlinedButton.styleFrom(
             foregroundColor: on ? color : mutedColor,
             side: BorderSide(color: on ? color : lineColor),
           ),
-          icon: Icon(icon, size: 18),
+          icon: icon,
           label: Text('$n', style: const TextStyle(fontWeight: FontWeight.w700)),
         );
     return Row(
       children: [
-        btn(Icons.thumb_up_alt_rounded, (p['up'] as num?)?.toInt() ?? 0, my > 0, _green,
+        btn(const PxIcon('on', 22), (p['up'] as num?)?.toInt() ?? 0, my > 0, _green,
             self ? null : () => vote(1)),
         const SizedBox(width: 10),
-        btn(Icons.thumb_down_alt_rounded, (p['down'] as num?)?.toInt() ?? 0, my < 0, _red,
+        btn(const PxIcon('off', 22), (p['down'] as num?)?.toInt() ?? 0, my < 0, _red,
             self ? null : () => vote(-1)),
         if (self) ...[
           const SizedBox(width: 12),

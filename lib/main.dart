@@ -2213,11 +2213,11 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
 
   Widget _navBar() {
     const labels = ['Card', 'News', 'Server', 'Settings'];
-    const icons = [
+    const icons = <Object>[
       Icons.credit_card_rounded,
       Icons.newspaper_rounded,
       Icons.dns_rounded,
-      Icons.settings_rounded,
+      'settings',
     ];
     return Container(
       decoration: BoxDecoration(
@@ -2245,7 +2245,7 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(icons[i], color: on ? accent : navMuted, size: 24),
+                      icons[i] is IconData ? Icon(icons[i] as IconData, color: on ? accent : navMuted, size: 24) : PxIcon(icons[i] as String, 26, opacity: on ? 1 : 0.6),
                       const SizedBox(height: 2),
                       Text(
                         labels[i],
@@ -3025,7 +3025,7 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
               const Divider(height: 1),
               SwitchListTile(
                 secondary:
-                    const Icon(Icons.notifications_rounded, color: accent),
+                    const PxIcon('bell', 26),
                 title: const Text('News notifications'),
                 subtitle: Text(widget.firebaseOk
                     ? 'Status: $pushStatus'
