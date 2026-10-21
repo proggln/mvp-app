@@ -1714,8 +1714,7 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
                     Text(medal.name,
                         style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18, color: inkColor)),
                     Text(
-                      const ['', 'Common', 'Uncommon', 'Rare', 'Epic', 'Legendary'][((m['rarity'] as num?)?.toInt() ?? 1).clamp(1, 5)] +
-                          ' (${((m['rarity'] as num?)?.toInt() ?? 1).clamp(1, 5)}/5)',
+                      const ['', 'Common', 'Uncommon', 'Rare', 'Epic', 'Legendary'][((m['rarity'] as num?)?.toInt() ?? 1).clamp(1, 5)],
                       style: TextStyle(
                         fontWeight: FontWeight.w700,
                         fontSize: 13,
