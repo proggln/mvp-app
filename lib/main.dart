@@ -2215,7 +2215,7 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
     const labels = ['Card', 'News', 'Server', 'Settings'];
     const icons = <Object>[
       'card',
-      Icons.newspaper_rounded,
+      'news',
       Icons.dns_rounded,
       'settings',
     ];
