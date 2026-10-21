@@ -878,6 +878,13 @@ const String apkUrl =
     'https://github.com/proggln/mvp-releases/releases/latest/download/mvp-app.apk';
 
 /// Newest published build number (0 when unknown).
+/// Card textures built into the app. A newer texture that is not built in yet is loaded from the website,
+/// so new card styles work without an app update.
+const Set<String> kTexAssets = {'obsidian', 'diamond', 'netherite', 'voidstone', 'glacier', 'darksteel'};
+ImageProvider texImage(String tex) => kTexAssets.contains(tex)
+    ? AssetImage('assets/tex_$tex.png') as ImageProvider
+    : NetworkImage('https://playmvp.org/card/$tex.png');
+
 Future<int> latestBuild() async {
   final res = await http.get(
     Uri.parse('https://api.github.com/repos/proggln/mvp-releases/releases/latest'),
@@ -1525,6 +1532,10 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
     try {
       final latest = await latestBuild();
       if (!mounted) return;
+      if (latest == 0) {
+        if (manual) note('Could not check for updates. Try again later.');
+        return;
+      }
       if (latest <= kBuild) {
         if (manual) note('You have the latest version.');
         return;
@@ -2128,7 +2139,7 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
                               image: t.tex.isEmpty
                                   ? null
                                   : DecorationImage(
-                                      image: AssetImage('assets/tex_${t.tex}.png'),
+                                      image: texImage(t.tex),
                                       repeat: ImageRepeat.repeat,
                                       scale: 1.0,
                                       filterQuality: FilterQuality.none,
@@ -3200,7 +3211,7 @@ class _MemberCardState extends State<MemberCard>
             image: widget.style == null
                 ? null
                 : DecorationImage(
-                    image: AssetImage('assets/tex_${widget.style!.tex}.png'),
+                    image: texImage(widget.style!.tex),
                     repeat: ImageRepeat.repeat,
                     scale: 0.25,
                     alignment: Alignment.topLeft,
