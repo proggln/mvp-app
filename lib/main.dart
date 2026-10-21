@@ -3234,7 +3234,7 @@ class _MemberCardState extends State<MemberCard>
                 if (widget.style != null)
                   Positioned.fill(
                     child: IgnorePointer(
-                      child: CustomPaint(painter: _PixelShine(_anim, widget.style!.spark)),
+                      child: CustomPaint(painter: PixelShine(_anim, widget.style!.spark)),
                     ),
                   ),
                 Positioned(
@@ -4293,8 +4293,8 @@ class _UpdateDialogState extends State<UpdateDialog> {
 }
 
 // Pixel shine for textured cards: a soft light band that sweeps over the card and small twinkling crosses.
-class _PixelShine extends CustomPainter {
-  _PixelShine(this.t, this.spark) : super(repaint: t);
+class PixelShine extends CustomPainter {
+  PixelShine(this.t, this.spark) : super(repaint: t);
   final Animation<double> t;
   final Color spark;
   static const List<List<double>> _pts = [
@@ -4342,5 +4342,5 @@ class _PixelShine extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant _PixelShine old) => old.spark != spark;
+  bool shouldRepaint(covariant PixelShine old) => old.spark != spark;
 }

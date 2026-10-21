@@ -1428,13 +1428,29 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
     final c1 = _hex(cs.length > 1 ? cs[1] : null, accent);
     final c2 = _hex(cs.length > 2 ? cs[2] : null, accentDark);
     final animated = t['anim'] == true;
+    final tex = (t['tex'] ?? '').toString();
+    final shade = (t['shade'] as num?)?.toDouble() ?? 0;
     return AnimatedBuilder(
       animation: anim,
       builder: (ctx, child) => Container(
         height: 168,
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(24),
-          gradient: animated
+          image: tex.isEmpty
+              ? null
+              : DecorationImage(
+                  image: AssetImage('assets/tex_$tex.png'),
+                  repeat: ImageRepeat.repeat,
+                  scale: 0.25,
+                  alignment: Alignment.topLeft,
+                  filterQuality: FilterQuality.none,
+                  colorFilter: shade > 0
+                      ? ColorFilter.mode(Color.fromARGB((shade * 255).round(), 0, 0, 0), BlendMode.srcOver)
+                      : null,
+                ),
+          gradient: tex.isNotEmpty
+              ? null
+              : animated
               ? LinearGradient(
                   colors: [c0, c1, c2, c1, c0],
                   begin: Alignment.topLeft,
@@ -1452,7 +1468,21 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
             BoxShadow(color: c1.withAlpha(97), blurRadius: 36, offset: const Offset(0, 18)),
           ],
         ),
-        child: child,
+        child: tex.isEmpty
+            ? child
+            : ClipRRect(
+                borderRadius: BorderRadius.circular(24),
+                child: Stack(
+                  children: [
+                    Positioned.fill(
+                      child: IgnorePointer(
+                        child: CustomPaint(painter: PixelShine(anim, _hex(t['spark'], const Color(0xFFBBFFFF)))),
+                      ),
+                    ),
+                    child!,
+                  ],
+                ),
+              ),
       ),
       child: Padding(
         padding: const EdgeInsets.all(20),
