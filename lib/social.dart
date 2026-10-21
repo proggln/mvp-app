@@ -2162,7 +2162,7 @@ class _ContestsBoxState extends State<ContestsBox> {
           borderRadius: BorderRadius.circular(999),
         ),
         child: Row(mainAxisSize: MainAxisSize.min, children: [
-          PxIcon(icon, 16),
+          icon == 'coin' ? Image.asset('assets/coin.png', width: 18, height: 18, filterQuality: FilterQuality.none) : PxIcon(icon, 16),
           const SizedBox(width: 6),
           Text(text, style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: inkColor)),
         ]),
@@ -2194,6 +2194,7 @@ class _ContestsBoxState extends State<ContestsBox> {
             const SizedBox(height: 10),
             Wrap(spacing: 8, runSpacing: 8, children: [
               if ((c['prize'] ?? '').toString().isNotEmpty) _chip('daily', (c['prize']).toString(), gold: true),
+              if (((c['prize_coins'] as num?)?.toInt() ?? 0) > 0) _chip('coin', '${(c['prize_coins'] as num).toInt()} Coins', gold: true),
               _chip('people', '${(c['entries'] as num?)?.toInt() ?? 0} joined'),
               if (c['drawn_at'] != null)
                 _chip('baltop', 'Winner: ${(c['winner'] ?? '-')}', gold: true)
