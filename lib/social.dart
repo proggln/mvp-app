@@ -5,6 +5,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
 
 import 'main.dart';
@@ -2073,6 +2074,158 @@ class _PrivacyPageState extends State<PrivacyPage> {
                 ),
               ],
             ),
+    );
+  }
+}
+
+
+/// Contests (giveaways) box on the card tab.
+class ContestsBox extends StatefulWidget {
+  const ContestsBox({super.key, required this.token});
+  final String token;
+  @override
+  State<ContestsBox> createState() => _ContestsBoxState();
+}
+
+class _ContestsBoxState extends State<ContestsBox> {
+  List<Map<String, dynamic>> items = <Map<String, dynamic>>[];
+  final Set<int> busy = <int>{};
+  final Set<int> failed = <int>{};
+  Timer? tick;
+  int n = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+    tick = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (!mounted) return;
+      n++;
+      if (n % 15 == 0) _load();
+      if (items.isNotEmpty) setState(() {});
+    });
+  }
+
+  @override
+  void dispose() {
+    tick?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _load() async {
+    try {
+      final res = await http.get(Uri.parse('$apiBase/api/contests'), headers: <String, String>{
+        if (widget.token.isNotEmpty) 'Authorization': 'Bearer ${widget.token}',
+      }).timeout(const Duration(seconds: 15));
+      if (res.statusCode != 200) return;
+      final j = jsonDecode(utf8.decode(res.bodyBytes));
+      if (j is! List || !mounted) return;
+      setState(() {
+        items = j.whereType<Map>().map((e) => Map<String, dynamic>.from(e)).toList();
+      });
+    } catch (_) {}
+  }
+
+  Future<void> _join(Map<String, dynamic> c) async {
+    final id = (c['id'] as num).toInt();
+    setState(() {
+      busy.add(id);
+      failed.remove(id);
+    });
+    try {
+      final r = await apiCall('POST', '/api/app/contests/$id/join', token: widget.token, data: <String, dynamic>{});
+      if (!mounted) return;
+      if (r['_status'] == 200) {
+        setState(() => c['joined'] = true);
+        _load();
+      } else {
+        setState(() => failed.add(id));
+      }
+    } catch (_) {
+      if (mounted) setState(() => failed.add(id));
+    }
+    if (mounted) setState(() => busy.remove(id));
+  }
+
+  String _left(int ms) {
+    final s = ms ~/ 1000;
+    final d = s ~/ 86400, h = (s % 86400) ~/ 3600, m = (s % 3600) ~/ 60, x = s % 60;
+    if (d > 0) return '${d}d ${h}h';
+    if (h > 0) return '${h}h ${m}m';
+    return '${m}m ${x.toString().padLeft(2, '0')}s';
+  }
+
+  Widget _chip(String icon, String text, {bool gold = false}) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          color: gold ? tintAmber : tintBlue,
+          borderRadius: BorderRadius.circular(999),
+        ),
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
+          PxIcon(icon, 16),
+          const SizedBox(width: 6),
+          Text(text, style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, color: inkColor)),
+        ]),
+      );
+
+  @override
+  Widget build(BuildContext context) {
+    if (items.isEmpty) return const SizedBox.shrink();
+    final now = DateTime.now().millisecondsSinceEpoch;
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(color: surfaceColor, borderRadius: BorderRadius.circular(20)),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(children: [
+            const PxIcon('calendar', 26),
+            const SizedBox(width: 10),
+            Text('Contests', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: inkColor)),
+          ]),
+          for (final c in items) ...[
+            const SizedBox(height: 14),
+            Text((c['title'] ?? '').toString(), style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: inkColor)),
+            if ((c['description'] ?? '').toString().isNotEmpty) ...[
+              const SizedBox(height: 2),
+              Text((c['description']).toString(), style: TextStyle(color: mutedColor)),
+            ],
+            const SizedBox(height: 10),
+            Wrap(spacing: 8, runSpacing: 8, children: [
+              if ((c['prize'] ?? '').toString().isNotEmpty) _chip('daily', (c['prize']).toString(), gold: true),
+              _chip('people', '${(c['entries'] as num?)?.toInt() ?? 0} joined'),
+              if (c['drawn_at'] != null)
+                _chip('baltop', 'Winner: ${(c['winner'] ?? '-')}', gold: true)
+              else
+                _chip('history', () {
+                  final l = ((c['ends_at'] as num?)?.toInt() ?? 0) - now;
+                  return l <= 0 ? 'Ended' : 'Ends in ${_left(l)}';
+                }()),
+            ]),
+            if (c['open'] == true) ...[
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton(
+                  onPressed: (c['joined'] == true || busy.contains((c['id'] as num).toInt()))
+                      ? null
+                      : () {
+                          if (widget.token.isEmpty) {
+                            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Log in to join contests.')));
+                            return;
+                          }
+                          _join(c);
+                        },
+                  child: c['joined'] == true
+                      ? const Row(mainAxisSize: MainAxisSize.min, children: [PxIcon('on', 20), SizedBox(width: 8), Text('You joined')])
+                      : Text(failed.contains((c['id'] as num).toInt()) ? 'Try again' : 'Join the contest'),
+                ),
+              ),
+            ],
+          ],
+        ],
+      ),
     );
   }
 }

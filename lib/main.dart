@@ -2294,6 +2294,7 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
           if (deleteAt > 0) _deleteBanner(),
           for (final e in events.where((x) => x.pinned))
             EventCard(key: ValueKey('p${e.id}'), item: e),
+          if (token.isNotEmpty) ContestsBox(token: token),
           Row(
             children: [
               Expanded(
