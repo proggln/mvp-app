@@ -292,6 +292,18 @@ class _SxCommentsState extends State<SxComments> {
       _toast(context, 'Log in with a linked account to report comments.');
       return;
     }
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Report this comment?'),
+        content: const Text('Our moderators will review it. Please report only comments that break the rules.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Report')),
+        ],
+      ),
+    );
+    if (ok != true || !mounted) return;
     try {
       final r = await apiCall('POST', '/api/app/comments/report',
           token: widget.token, data: {'id': c['id']});
@@ -1530,7 +1542,7 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
           image: tex.isEmpty
               ? null
               : DecorationImage(
-                  image: AssetImage('assets/tex_$tex.png'),
+                  image: texImage(tex),
                   repeat: ImageRepeat.repeat,
                   scale: 0.25,
                   alignment: Alignment.topLeft,
