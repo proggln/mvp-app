@@ -39,7 +39,7 @@ final ValueNotifier<ThemeMode> themeMode =
     ValueNotifier<ThemeMode>(ThemeMode.system);
 
 Color get bgColor =>
-    kDark ? const Color(0xFF07111B) : kWhite ? const Color(0xFFFFFFFF) : const Color(0xFFEEF2F6);
+    kDark ? Colors.transparent : kWhite ? const Color(0xFFFFFFFF) : const Color(0xFFEEF2F6);
 Color get surfaceColor => kDark ? const Color(0xFF0F1D2B) : kWhite ? const Color(0xFFF1F5F9) : Colors.white;
 Color get inkColor =>
     kDark ? const Color(0xFFE8F1F8) : kWhite ? const Color(0xFF0B1B2B) : const Color(0xFF0B1B2B);
@@ -158,15 +158,58 @@ class _MvpAppState extends State<MvpApp> with WidgetsBindingObserver {
                     seedColor: accent, brightness: Brightness.dark)
                 .copyWith(primary: accentLight, surface: surfaceColor),
             scaffoldBackgroundColor: bgColor,
+            pageTransitionsTheme: const PageTransitionsTheme(builders: {
+              TargetPlatform.android: _FadeThroughTransitions(),
+              TargetPlatform.iOS: _FadeThroughTransitions(),
+            }),
             appBarTheme: AppBarTheme(
               backgroundColor: bgColor,
               foregroundColor: inkColor,
               elevation: 0,
+              scrolledUnderElevation: 0,
+              surfaceTintColor: Colors.transparent,
             ),
           ),
+          builder: (context, child) => kDark
+              ? Stack(fit: StackFit.expand, children: [
+                  const _DarkBackdrop(),
+                  if (child != null) child,
+                ])
+              : (child ?? const SizedBox.shrink()),
           home: Shell(firebaseOk: firebaseOk),
         );
       },
+    );
+  }
+}
+
+/// Dark theme background: the dark Minecraft corridor from the website, dimmed so text stays easy to read.
+class _DarkBackdrop extends StatelessWidget {
+  const _DarkBackdrop();
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(fit: StackFit.expand, children: [
+      Image.asset('assets/bg_corridor.jpg', fit: BoxFit.cover, filterQuality: FilterQuality.low),
+      const ColoredBox(color: Color(0xD907111B)),
+    ]);
+  }
+}
+
+/// Pages are see-through in the dark theme, so a page must fade out before the next one fades in (no double picture).
+class _FadeThroughTransitions extends PageTransitionsBuilder {
+  const _FadeThroughTransitions();
+
+  @override
+  Widget buildTransitions<T>(PageRoute<T> route, BuildContext context, Animation<double> animation,
+      Animation<double> secondaryAnimation, Widget child) {
+    return FadeTransition(
+      opacity: CurvedAnimation(parent: animation, curve: const Interval(0.35, 1.0, curve: Curves.easeOut)),
+      child: FadeTransition(
+        opacity: Tween<double>(begin: 1, end: 0)
+            .animate(CurvedAnimation(parent: secondaryAnimation, curve: const Interval(0.0, 0.35))),
+        child: child,
+      ),
     );
   }
 }
