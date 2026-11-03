@@ -442,7 +442,8 @@ class _SxCommentsState extends State<SxComments> {
                           color: tintBlue,
                           borderRadius: BorderRadius.circular(999),
                         ),
-                        child: Text(rank,
+                        child: RankTag(rank,
+                            height: 14,
                             style: const TextStyle(
                                 fontSize: 11, fontWeight: FontWeight.w700, color: accent)),
                       ),
@@ -1612,7 +1613,8 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
                     color: const Color(0x38FFFFFF),
                     borderRadius: BorderRadius.circular(999),
                   ),
-                  child: Text((p['rank'] ?? '').toString(),
+                  child: RankTag((p['rank'] ?? '').toString(),
+                      height: 16,
                       style: const TextStyle(
                           color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600)),
                 ),

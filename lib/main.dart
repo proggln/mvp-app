@@ -869,6 +869,33 @@ class VideoTile extends StatelessWidget {
   }
 }
 
+/// Paid ranks are shown as the same in-game prefix pictures as the website's rank table; other ranks stay plain text.
+String? rankImage(String rank) {
+  switch (rank.trim().toLowerCase()) {
+    case 'vip':
+      return 'assets/rank_vip.png';
+    case 'mvp':
+      return 'assets/rank_mvp.png';
+    case 'mvp+':
+      return 'assets/rank_mvpplus.png';
+  }
+  return null;
+}
+
+class RankTag extends StatelessWidget {
+  const RankTag(this.rank, {super.key, required this.style, this.height = 16});
+  final String rank;
+  final TextStyle style;
+  final double height;
+
+  @override
+  Widget build(BuildContext context) {
+    final img = rankImage(rank);
+    if (img == null) return Text(rank, style: style);
+    return Image.asset(img, height: height, filterQuality: FilterQuality.none, semanticLabel: rank);
+  }
+}
+
 // Build number comes from the GitHub build (--dart-define=BUILD=...).
 const int kBuild = int.fromEnvironment('BUILD', defaultValue: 0);
 
@@ -3318,8 +3345,9 @@ class _MemberCardState extends State<MemberCard>
                             color: const Color(0x38FFFFFF),
                             borderRadius: BorderRadius.circular(999),
                           ),
-                          child: Text(
+                          child: RankTag(
                             widget.rank,
+                            height: 16,
                             style: TextStyle(
                               color: Colors.white,
                               fontSize: 11,
