@@ -190,7 +190,7 @@ class _DarkBackdrop extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Stack(fit: StackFit.expand, children: [
-      Image.asset('assets/bg_corridor.jpg', fit: BoxFit.cover, filterQuality: FilterQuality.low),
+      Image.asset('assets/bg_corridor.png', fit: BoxFit.cover, filterQuality: FilterQuality.low),
       const ColoredBox(color: Color(0xD907111B)),
     ]);
   }
