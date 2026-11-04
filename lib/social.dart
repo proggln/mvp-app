@@ -1800,7 +1800,7 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
       children.add(FilledButton.icon(
         onPressed: () => openLink('https://discord.com/users/${dc['id']}'),
         style: FilledButton.styleFrom(backgroundColor: const Color(0xFF5865F2)),
-        icon: const PxIcon('discord', 18),
+        icon: Image.asset('assets/ic_discord_w.png', height: 14, filterQuality: FilterQuality.medium),
         label: const Text('Discord'),
       ));
     }
@@ -2228,7 +2228,7 @@ class _DiscordSettingsState extends State<DiscordSettings> with WidgetsBindingOb
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(children: [
-            const PxIcon('discord', 22),
+            Image.asset('assets/ic_discord.png', height: 20, filterQuality: FilterQuality.medium),
             const SizedBox(width: 10),
             Text('Discord', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: inkColor)),
           ]),
@@ -2244,7 +2244,11 @@ class _DiscordSettingsState extends State<DiscordSettings> with WidgetsBindingOb
             FilledButton(
               onPressed: busy ? null : connect,
               style: FilledButton.styleFrom(backgroundColor: const Color(0xFF5865F2)),
-              child: const Text('Connect Discord'),
+              child: Row(mainAxisSize: MainAxisSize.min, children: [
+                Image.asset('assets/ic_discord_w.png', height: 16, filterQuality: FilterQuality.medium),
+                const SizedBox(width: 8),
+                const Text('Connect Discord'),
+              ]),
             )
           else ...[
             Wrap(spacing: 8, runSpacing: 4, children: [
