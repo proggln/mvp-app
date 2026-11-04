@@ -2236,7 +2236,7 @@ class _DiscordSettingsState extends State<DiscordSettings> with WidgetsBindingOb
           Text(
             linked
                 ? 'Connected as ${m['username']}. Who can see your Discord on your profile?'
-                : 'Connect your Discord so other players can message you there. You log in to Discord once to prove it is you. Nobody sees it until you allow it.',
+                : 'Connect your Discord so other players can message you there. You log in to Discord once to prove it is you. By default everyone who can see your profile will see it. You can change this after connecting.',
             style: TextStyle(color: mutedColor, height: 1.35),
           ),
           const SizedBox(height: 12),
