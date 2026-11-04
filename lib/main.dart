@@ -653,7 +653,16 @@ class _InboxPageState extends State<InboxPage> {
                       NewsPicture(url: m.image!, height: null),
                     ],
                     const SizedBox(height: 8),
-                    RichBody(text: m.body, style: TextStyle(fontSize: 15, height: 1.45, color: inkColor)),
+                    Builder(builder: (context) {
+                      final pm = RegExp(r'^([A-Za-z0-9_]{3,16}) (?:liked|disliked|accepted|wants|sent|commented|replied|mentioned|rated|removed|is now)\b').firstMatch(m.body);
+                      final body = RichBody(text: m.body, style: TextStyle(fontSize: 15, height: 1.45, color: inkColor));
+                      if (pm == null) return body;
+                      return Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                        SkinHead(nick: pm.group(1)!, size: 32),
+                        const SizedBox(width: 10),
+                        Expanded(child: body),
+                      ]);
+                    }),
                     for (final id in videoIds(m.body)) VideoTile(id: id),
                   ],
                 ),
