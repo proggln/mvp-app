@@ -3367,6 +3367,7 @@ class _MemberCardState extends State<MemberCard>
                       child: CustomPaint(painter: PixelShine(_anim, widget.style!.spark)),
                     ),
                   ),
+                if (widget.style == null)
                 Positioned(
                   right: -72,
                   bottom: -92,
@@ -3379,6 +3380,7 @@ class _MemberCardState extends State<MemberCard>
                     ),
                   ),
                 ),
+                if (widget.style == null)
                 Positioned(
                   right: 8,
                   bottom: -132,
