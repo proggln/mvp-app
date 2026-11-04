@@ -620,6 +620,13 @@ class _InboxPageState extends State<InboxPage> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Row(children: [
+                      if (m.sender != 'server') ...[
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(6),
+                          child: Image.asset('assets/logo.png', width: 24, height: 24, filterQuality: FilterQuality.medium),
+                        ),
+                        const SizedBox(width: 8),
+                      ],
                       Text(m.sender == 'server' ? 'GAME SERVER' : 'MVP TEAM',
                           style: const TextStyle(color: accent, fontSize: 11, fontWeight: FontWeight.w800, letterSpacing: 0.8)),
                       if (m.sender != 'server') ...[
