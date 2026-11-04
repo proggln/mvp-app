@@ -664,7 +664,7 @@ class _InboxPageState extends State<InboxPage> {
                         Expanded(
                           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                             Row(children: [
-                              Flexible(child: Text(nk, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: inkColor))),
+                              Flexible(child: _NickLink(nick: nk, color: inkColor, onTap: () => openProfile(context, widget.token, nk))),
                               _VerifiedIfPlayer(nick: nk, token: widget.token),
                             ]),
                             const SizedBox(height: 2),
@@ -4525,6 +4525,39 @@ class _VerifiedIfPlayer extends StatelessWidget {
       builder: (context, snap) => snap.data == true
           ? const Padding(padding: EdgeInsets.only(left: 4), child: VerifiedBadge(size: 15))
           : const SizedBox.shrink(),
+    );
+  }
+}
+
+
+// a nickname that turns blue while it is pressed and opens the profile on tap
+class _NickLink extends StatefulWidget {
+  const _NickLink({required this.nick, required this.color, required this.onTap});
+
+  final String nick;
+  final Color color;
+  final VoidCallback onTap;
+
+  @override
+  State<_NickLink> createState() => _NickLinkState();
+}
+
+class _NickLinkState extends State<_NickLink> {
+  bool down = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTapDown: (_) => setState(() => down = true),
+      onTapUp: (_) => setState(() => down = false),
+      onTapCancel: () => setState(() => down = false),
+      onTap: widget.onTap,
+      child: AnimatedDefaultTextStyle(
+        duration: const Duration(milliseconds: 120),
+        style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: down ? const Color(0xFF0081CC) : widget.color),
+        child: Text(widget.nick, maxLines: 1, overflow: TextOverflow.ellipsis),
+      ),
     );
   }
 }
