@@ -657,10 +657,20 @@ class _InboxPageState extends State<InboxPage> {
                       final pm = RegExp(r'^([A-Za-z0-9_]{3,16}) (?:liked|disliked|accepted|wants|sent|commented|replied|mentioned|rated|removed|is now)\b').firstMatch(m.body);
                       final body = RichBody(text: m.body, style: TextStyle(fontSize: 15, height: 1.45, color: inkColor));
                       if (pm == null) return body;
+                      final nk = pm.group(1)!;
                       return Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                        SkinHead(nick: pm.group(1)!, size: 32),
+                        SkinHead(nick: nk, size: 36),
                         const SizedBox(width: 10),
-                        Expanded(child: body),
+                        Expanded(
+                          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                            Row(children: [
+                              Flexible(child: Text(nk, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: inkColor))),
+                              _VerifiedIfPlayer(nick: nk, token: widget.token),
+                            ]),
+                            const SizedBox(height: 2),
+                            RichBody(text: m.body.substring(nk.length).trim(), style: TextStyle(fontSize: 15, height: 1.45, color: inkColor)),
+                          ]),
+                        ),
                       ]);
                     }),
                     for (final id in videoIds(m.body)) VideoTile(id: id),
@@ -4487,5 +4497,34 @@ class PxIcon extends StatelessWidget {
     final img = Image.asset('assets/ic_$name.png',
         width: s, height: s, filterQuality: FilterQuality.none, isAntiAlias: false);
     return opacity >= 1 ? img : Opacity(opacity: opacity, child: img);
+  }
+}
+
+
+// shows the verified tick next to a nickname when that player is verified
+final Map<String, Future<bool>> _verifiedCache = {};
+
+class _VerifiedIfPlayer extends StatelessWidget {
+  const _VerifiedIfPlayer({required this.nick, required this.token});
+
+  final String nick;
+  final String token;
+
+  @override
+  Widget build(BuildContext context) {
+    final f = _verifiedCache.putIfAbsent(nick.toLowerCase(), () async {
+      try {
+        final r = await apiCall('GET', '/api/profile?nick=${Uri.encodeQueryComponent(nick)}', token: token);
+        return r['verified'] == true;
+      } catch (_) {
+        return false;
+      }
+    });
+    return FutureBuilder<bool>(
+      future: f,
+      builder: (context, snap) => snap.data == true
+          ? const Padding(padding: EdgeInsets.only(left: 4), child: VerifiedBadge(size: 15))
+          : const SizedBox.shrink(),
+    );
   }
 }
