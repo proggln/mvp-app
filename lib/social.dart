@@ -1795,6 +1795,15 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
         child: const Text('Decline'),
       ));
     }
+    final dc = p['discord'];
+    if (rel != 'self' && dc is Map && RegExp(r'^\d{5,25}$').hasMatch('${dc['id']}')) {
+      children.add(FilledButton.icon(
+        onPressed: () => openLink('https://discord.com/users/${dc['id']}'),
+        style: FilledButton.styleFrom(backgroundColor: const Color(0xFF5865F2)),
+        icon: const PxIcon('discord', 18),
+        label: const Text('Discord'),
+      ));
+    }
     if (children.isEmpty) return const SizedBox.shrink();
     return Wrap(spacing: 10, runSpacing: 8, children: children);
   }
@@ -2086,8 +2095,172 @@ class _PrivacyPageState extends State<PrivacyPage> {
                     ],
                   ),
                 ),
+                const SizedBox(height: 16),
+                DiscordSettings(token: widget.token),
               ],
             ),
+    );
+  }
+}
+
+/// Connect a Discord account (log in with Discord to prove it) and choose who can see it on the profile.
+class DiscordSettings extends StatefulWidget {
+  const DiscordSettings({super.key, required this.token});
+  final String token;
+  @override
+  State<DiscordSettings> createState() => _DiscordSettingsState();
+}
+
+class _DiscordSettingsState extends State<DiscordSettings> with WidgetsBindingObserver {
+  Map<String, dynamic>? d;
+  bool busy = false;
+  String msg = '';
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    load();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // back from the browser after the Discord login
+    if (state == AppLifecycleState.resumed) load();
+  }
+
+  Future<void> load() async {
+    try {
+      final r = await apiCall('GET', '/api/app/discord', token: widget.token);
+      if (mounted && r['_status'] == 200) setState(() => d = r);
+    } catch (_) {}
+  }
+
+  Future<void> connect() async {
+    if (busy) return;
+    setState(() {
+      busy = true;
+      msg = '';
+    });
+    try {
+      final r = await apiCall('POST', '/api/app/discord/start', token: widget.token, data: {'ret': 'app'});
+      if (!mounted) return;
+      if (r['_status'] == 200 && r['url'] != null) {
+        await openLink(r['url'].toString());
+        if (mounted) setState(() => busy = false);
+      } else {
+        setState(() {
+          busy = false;
+          msg = r['_status'] == 403
+              ? 'Link your Minecraft account first.'
+              : r['_status'] == 429
+                  ? 'Too many tries. Wait a little.'
+                  : 'Discord login is not available right now.';
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          busy = false;
+          msg = 'Cannot reach the server.';
+        });
+      }
+    }
+  }
+
+  Future<void> setVisibility(String v) async {
+    try {
+      final r = await apiCall('POST', '/api/app/discord/visibility', token: widget.token, data: {'visibility': v});
+      if (!mounted) return;
+      setState(() {
+        if (r['_status'] == 200) d?['visibility'] = v;
+        msg = r['_status'] == 200 ? '' : 'Could not save. Try again.';
+      });
+    } catch (_) {
+      if (mounted) setState(() => msg = 'Cannot reach the server.');
+    }
+  }
+
+  Future<void> unlink() async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Disconnect Discord?'),
+        content: const Text('Your Discord will no longer be shown on your profile.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Disconnect')),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    try {
+      await apiCall('POST', '/api/app/discord/unlink', token: widget.token, data: {});
+    } catch (_) {}
+    await load();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final m = d;
+    if (m == null || (m['configured'] != true && m['linked'] != true)) return const SizedBox.shrink();
+    final linked = m['linked'] == true;
+    final vis = (m['visibility'] ?? 'off').toString();
+    Widget chip(String v, String label) => ChoiceChip(
+          label: Text(label),
+          selected: vis == v,
+          onSelected: (_) => setVisibility(v),
+        );
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: surfaceColor,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: softShadow(),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(children: [
+            const PxIcon('discord', 22),
+            const SizedBox(width: 10),
+            Text('Discord', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16, color: inkColor)),
+          ]),
+          const SizedBox(height: 8),
+          Text(
+            linked
+                ? 'Connected as ${m['username']}. Who can see your Discord on your profile?'
+                : 'Connect your Discord so other players can message you there. You log in to Discord once to prove it is you. Nobody sees it until you allow it.',
+            style: TextStyle(color: mutedColor, height: 1.35),
+          ),
+          const SizedBox(height: 12),
+          if (!linked)
+            FilledButton(
+              onPressed: busy ? null : connect,
+              style: FilledButton.styleFrom(backgroundColor: const Color(0xFF5865F2)),
+              child: const Text('Connect Discord'),
+            )
+          else ...[
+            Wrap(spacing: 8, runSpacing: 4, children: [
+              chip('off', 'Nobody'),
+              chip('friends', 'Friends only'),
+              chip('public', 'Everyone who sees my profile'),
+            ]),
+            const SizedBox(height: 4),
+            TextButton(onPressed: unlink, child: const Text('Disconnect Discord')),
+          ],
+          if (msg.isNotEmpty) ...[
+            const SizedBox(height: 6),
+            Text(msg, style: const TextStyle(color: Color(0xFFC0343F))),
+          ],
+        ],
+      ),
     );
   }
 }
