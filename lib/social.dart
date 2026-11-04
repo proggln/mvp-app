@@ -1858,7 +1858,7 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
                       const SizedBox(height: 16),
                       _actions(p),
                     ] else ...[
-                      _card(p),
+                      TiltBox(child: _card(p)),
                       const SizedBox(height: 10),
                       if (p['online'] != null)
                         Padding(
@@ -2417,6 +2417,49 @@ class _ContestsBoxState extends State<ContestsBox> {
             ],
           ],
         ],
+      ),
+    );
+  }
+}
+
+
+/// Lets a card be turned by dragging a finger over it, the same as your own member card on the Card tab.
+class TiltBox extends StatefulWidget {
+  const TiltBox({super.key, required this.child});
+  final Widget child;
+  @override
+  State<TiltBox> createState() => _TiltBoxState();
+}
+
+class _TiltBoxState extends State<TiltBox> {
+  Offset tilt = Offset.zero;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onPanUpdate: (d) {
+        setState(() {
+          tilt = Offset(
+            (tilt.dx + d.delta.dx / 400).clamp(-0.25, 0.25),
+            (tilt.dy + d.delta.dy / 400).clamp(-0.25, 0.25),
+          );
+        });
+      },
+      onPanEnd: (_) => setState(() => tilt = Offset.zero),
+      onPanCancel: () => setState(() => tilt = Offset.zero),
+      child: TweenAnimationBuilder<Offset>(
+        tween: Tween<Offset>(begin: tilt, end: tilt),
+        duration: const Duration(milliseconds: 120),
+        curve: Curves.easeOut,
+        builder: (context, o, child) => Transform(
+          alignment: Alignment.center,
+          transform: Matrix4.identity()
+            ..setEntry(3, 2, 0.0012)
+            ..rotateX(-o.dy)
+            ..rotateY(o.dx),
+          child: child,
+        ),
+        child: widget.child,
       ),
     );
   }
