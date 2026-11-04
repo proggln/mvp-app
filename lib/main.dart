@@ -611,10 +611,20 @@ class _InboxPageState extends State<InboxPage> {
                 margin: const EdgeInsets.only(bottom: 12),
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: surfaceColor,
+                  color: m.sender == 'server' ? surfaceColor : null,
+                  gradient: m.sender == 'server'
+                      ? null
+                      : LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [const Color(0xFF0081D6).withOpacity(0.30), surfaceColor, surfaceColor],
+                          stops: const [0, 0.55, 1],
+                        ),
                   borderRadius: BorderRadius.circular(20),
-                  boxShadow: softShadow(),
-                  border: m.read ? null : Border.all(color: accentLight, width: 1.5),
+                  boxShadow: m.sender == 'server' ? softShadow() : [BoxShadow(color: const Color(0xFF0081D6).withOpacity(0.25), blurRadius: 18, offset: const Offset(0, 6))],
+                  border: m.sender != 'server'
+                      ? Border.all(color: const Color(0xFF2B9CFF).withOpacity(m.read ? 0.4 : 0.9), width: 1.5)
+                      : (m.read ? null : Border.all(color: accentLight, width: 1.5)),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -623,7 +633,7 @@ class _InboxPageState extends State<InboxPage> {
                       if (m.sender != 'server') ...[
                         ClipRRect(
                           borderRadius: BorderRadius.circular(6),
-                          child: Image.asset('assets/logo.png', width: 24, height: 24, filterQuality: FilterQuality.medium),
+                          child: Image.asset('assets/logo.png', width: 30, height: 30, filterQuality: FilterQuality.medium),
                         ),
                         const SizedBox(width: 8),
                       ],
