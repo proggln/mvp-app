@@ -1756,56 +1756,100 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
     );
   }
 
+  bool _confirmRemove = false;
+
   Widget _actions(Map<String, dynamic> p) {
     final rel = (p['relation'] ?? 'none').toString();
-    final children = <Widget>[];
+    final primary = <Widget>[];
+    final quiet = <Widget>[];
+    ButtonStyle filled(Color c) => FilledButton.styleFrom(
+          backgroundColor: c,
+          minimumSize: const Size(0, 44),
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+          textStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
+        );
+    ButtonStyle outline() => OutlinedButton.styleFrom(
+          minimumSize: const Size(0, 44),
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+          side: BorderSide(color: lineColor),
+          foregroundColor: inkColor,
+          textStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
+        );
+    Widget quietBtn(String label, VoidCallback tap, {Color? color}) => TextButton(
+          onPressed: tap,
+          style: TextButton.styleFrom(
+            foregroundColor: color ?? mutedColor,
+            minimumSize: const Size(0, 32),
+            padding: const EdgeInsets.symmetric(horizontal: 10),
+            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            textStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+          ),
+          child: Text(label),
+        );
     if (rel == 'friend') {
-      children.add(FilledButton.icon(
+      primary.add(FilledButton.icon(
         onPressed: () => Navigator.of(context).push(MaterialPageRoute<void>(
             builder: (_) => ChatPage(token: widget.token, nick: widget.nick))),
-        style: FilledButton.styleFrom(backgroundColor: accent),
+        style: filled(accent),
         icon: const Icon(Icons.chat_bubble_rounded, size: 18),
         label: const Text('Message'),
       ));
-      children.add(OutlinedButton(
-        onPressed: () => relation('/api/app/friends/remove'),
-        child: const Text('Remove friend'),
-      ));
+      if (_confirmRemove) {
+        quiet.add(Text('Remove from friends?', style: TextStyle(color: inkColor, fontSize: 13, fontWeight: FontWeight.w600)));
+        quiet.add(quietBtn('Yes', () {
+          setState(() => _confirmRemove = false);
+          relation('/api/app/friends/remove');
+        }, color: _red));
+        quiet.add(quietBtn('No', () => setState(() => _confirmRemove = false)));
+      } else {
+        quiet.add(quietBtn('Remove friend', () => setState(() => _confirmRemove = true)));
+      }
     } else if (rel == 'none') {
-      children.add(FilledButton.icon(
+      primary.add(FilledButton.icon(
         onPressed: () => relation('/api/app/friends/request'),
-        style: FilledButton.styleFrom(backgroundColor: accent),
+        style: filled(accent),
         icon: const Icon(Icons.person_add_alt_1_rounded, size: 18),
         label: const Text('Add to friends'),
       ));
     } else if (rel == 'pending_out') {
-      children.add(const OutlinedButton(onPressed: null, child: Text('Request sent')));
-      children.add(OutlinedButton(
-        onPressed: () => relation('/api/app/friends/remove'),
-        child: const Text('Cancel'),
-      ));
+      primary.add(const OutlinedButton(onPressed: null, child: Text('Request sent')));
+      quiet.add(quietBtn('Cancel request', () => relation('/api/app/friends/remove')));
     } else if (rel == 'pending_in') {
-      children.add(FilledButton(
+      primary.add(FilledButton(
         onPressed: () => relation('/api/app/friends/respond', extra: {'accept': true}),
-        style: FilledButton.styleFrom(backgroundColor: accent),
+        style: filled(accent),
         child: const Text('Accept request'),
       ));
-      children.add(OutlinedButton(
-        onPressed: () => relation('/api/app/friends/respond', extra: {'accept': false}),
-        child: const Text('Decline'),
-      ));
+      quiet.add(quietBtn('Decline', () => relation('/api/app/friends/respond', extra: {'accept': false})));
     }
     final dc = p['discord'];
     if (rel != 'self' && dc is Map && RegExp(r'^\d{5,25}$').hasMatch('${dc['id']}')) {
-      children.add(FilledButton.icon(
+      primary.add(FilledButton.icon(
         onPressed: () => openLink('https://discord.com/users/${dc['id']}'),
-        style: FilledButton.styleFrom(backgroundColor: const Color(0xFF5865F2)),
-        icon: Image.asset('assets/ic_discord_w.png', height: 14, filterQuality: FilterQuality.medium),
+        style: filled(const Color(0xFF5865F2)),
+        icon: Image.asset('assets/ic_discord_w.png', height: 16, filterQuality: FilterQuality.medium),
         label: const Text('Discord'),
       ));
     }
-    if (children.isEmpty) return const SizedBox.shrink();
-    return Wrap(spacing: 10, runSpacing: 8, children: children);
+    if (primary.isEmpty && quiet.isEmpty) return const SizedBox.shrink();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (primary.isNotEmpty)
+          Row(children: [
+            for (var k = 0; k < primary.length; k++) ...[
+              if (k > 0) const SizedBox(width: 10),
+              Expanded(child: primary[k]),
+            ],
+          ]),
+        if (quiet.isNotEmpty) ...[
+          const SizedBox(height: 4),
+          Row(crossAxisAlignment: CrossAxisAlignment.center, children: quiet),
+        ],
+      ],
+    );
   }
 
   Widget _rating(Map<String, dynamic> p) {
@@ -1816,16 +1860,20 @@ class _ProfilePageState extends State<ProfilePage> with SingleTickerProviderStat
           style: OutlinedButton.styleFrom(
             foregroundColor: on ? color : mutedColor,
             side: BorderSide(color: on ? color : lineColor),
+            minimumSize: const Size(0, 36),
+            padding: const EdgeInsets.symmetric(horizontal: 14),
+            visualDensity: VisualDensity.compact,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           ),
           icon: icon,
           label: Text('$n', style: const TextStyle(fontWeight: FontWeight.w700)),
         );
     return Row(
       children: [
-        btn(const PxIcon('on', 22), (p['up'] as num?)?.toInt() ?? 0, my > 0, _green,
+        btn(const PxIcon('on', 18), (p['up'] as num?)?.toInt() ?? 0, my > 0, _green,
             self ? null : () => vote(1)),
         const SizedBox(width: 10),
-        btn(const PxIcon('off', 22), (p['down'] as num?)?.toInt() ?? 0, my < 0, _red,
+        btn(const PxIcon('off', 18), (p['down'] as num?)?.toInt() ?? 0, my < 0, _red,
             self ? null : () => vote(-1)),
         if (self) ...[
           const SizedBox(width: 12),
