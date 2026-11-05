@@ -3116,7 +3116,7 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
               ),
               const Divider(height: 1),
               ListTile(
-                leading: const Icon(Icons.person_rounded, color: accent),
+                leading: const PxIcon('people', 26),
                 title: const Text('Game account'),
                 subtitle: Text(linked
                     ? nick
@@ -3141,7 +3141,7 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
                 const Divider(height: 1),
               ],
               ListTile(
-                leading: const Icon(Icons.palette_rounded, color: accent),
+                leading: const PxIcon('card', 26),
                 title: const Text('Card style'),
                 subtitle: Text(themes.length > 1
                     ? themes
@@ -3167,7 +3167,7 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
               ),
               const Divider(height: 1),
               ListTile(
-                leading: const Icon(Icons.dark_mode_rounded, color: accent),
+                leading: const PxIcon('sun', 26),
                 title: const Text('Theme'),
                 subtitle: Text(themeMode.value == ThemeMode.light ? 'Light (white)' : themeMode.value == ThemeMode.dark ? 'Dark' : 'Default'),
                 trailing: const Icon(Icons.chevron_right_rounded),
@@ -3175,7 +3175,7 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
               ),
               const Divider(height: 1),
               ListTile(
-                leading: const Icon(Icons.login_rounded, color: accent),
+                leading: const PxIcon('monitor', 26),
                 title: const Text('Sign in to the website'),
                 subtitle: const Text('Enter the code shown on the site'),
                 onTap: webLogin,
@@ -3189,8 +3189,7 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
               ),
               const Divider(height: 1),
               ListTile(
-                leading:
-                    const Icon(Icons.system_update_rounded, color: accent),
+                leading: const PxIcon('download', 26),
                 title: const Text('Check for updates'),
                 subtitle: Text('Version: $kVersion'),
                 onTap: () => checkUpdate(manual: true),
