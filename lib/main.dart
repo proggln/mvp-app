@@ -952,11 +952,11 @@ class VideoTile extends StatelessWidget {
 String? rankImage(String rank) {
   switch (rank.trim().toLowerCase()) {
     case 'vip':
-      return 'assets/rank_vip.png';
+      return 'assets/rank_vip_s.png';
     case 'mvp':
-      return 'assets/rank_mvp.png';
+      return 'assets/rank_mvp_s.png';
     case 'mvp+':
-      return 'assets/rank_mvpplus.png';
+      return 'assets/rank_mvpplus_s.png';
   }
   return null;
 }
