@@ -3106,7 +3106,7 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
           child: Column(
             children: [
               ListTile(
-                leading: const PxIcon('mail', 26),
+                leading: const _SettingsIcon('mail'),
                 title: const Text('E-mail'),
                 subtitle: Text(email.isNotEmpty ? email : 'No e-mail yet. Tap to add one.'),
                 trailing: email.isNotEmpty
@@ -3116,7 +3116,7 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
               ),
               const Divider(height: 1),
               ListTile(
-                leading: const PxIcon('people', 26),
+                leading: const _SettingsIcon('people'),
                 title: const Text('Game account'),
                 subtitle: Text(linked
                     ? nick
@@ -3131,7 +3131,7 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
               const Divider(height: 1),
               if (linked) ...[
                 ListTile(
-                  leading: const PxIcon('show', 26),
+                  leading: const _SettingsIcon('show'),
                   title: const Text('Privacy'),
                   subtitle: const Text('Online status, coins, suggestions'),
                   trailing: const Icon(Icons.chevron_right_rounded),
@@ -3141,7 +3141,7 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
                 const Divider(height: 1),
               ],
               ListTile(
-                leading: const PxIcon('card', 26),
+                leading: const _SettingsIcon('card'),
                 title: const Text('Card style'),
                 subtitle: Text(themes.length > 1
                     ? themes
@@ -3156,8 +3156,7 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
               ),
               const Divider(height: 1),
               SwitchListTile(
-                secondary:
-                    const PxIcon('bell', 26),
+                secondary: const _SettingsIcon('bell'),
                 title: const Text('News notifications'),
                 subtitle: Text(widget.firebaseOk
                     ? 'Status: $pushStatus'
@@ -3167,7 +3166,7 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
               ),
               const Divider(height: 1),
               ListTile(
-                leading: const PxIcon('sun', 26),
+                leading: const _SettingsIcon('sun'),
                 title: const Text('Theme'),
                 subtitle: Text(themeMode.value == ThemeMode.light ? 'Light (white)' : themeMode.value == ThemeMode.dark ? 'Dark' : 'Default'),
                 trailing: const Icon(Icons.chevron_right_rounded),
@@ -3175,21 +3174,21 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
               ),
               const Divider(height: 1),
               ListTile(
-                leading: const PxIcon('monitor', 26),
+                leading: const _SettingsIcon('monitor'),
                 title: const Text('Sign in to the website'),
                 subtitle: const Text('Enter the code shown on the site'),
                 onTap: webLogin,
               ),
               const Divider(height: 1),
               ListTile(
-                leading: const PxIcon('logout', 26),
+                leading: const _SettingsIcon('logout'),
                 title: const Text('Sign out'),
                 subtitle: const Text('Sign out of this phone'),
                 onTap: signOut,
               ),
               const Divider(height: 1),
               ListTile(
-                leading: const PxIcon('download', 26),
+                leading: const _SettingsIcon('download'),
                 title: const Text('Check for updates'),
                 subtitle: Text('Version: $kVersion'),
                 onTap: () => checkUpdate(manual: true),
@@ -4561,4 +4560,14 @@ class _NickLinkState extends State<_NickLink> {
       ),
     );
   }
+}
+
+
+// settings icon: a little room around the pixel picture so its edges are never cut by the list row
+class _SettingsIcon extends StatelessWidget {
+  const _SettingsIcon(this.name);
+  final String name;
+
+  @override
+  Widget build(BuildContext context) => SizedBox(width: 36, height: 36, child: Center(child: PxIcon(name, 26)));
 }
